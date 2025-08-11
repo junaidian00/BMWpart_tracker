@@ -60,6 +60,19 @@ type TransmissionRow = {
   manufacturer: string | null
 }
 
+// Simple demo dataset covering common BMW selections
+const DATA = {
+  2018: {
+    "330i": { chassis: "F30", engine: "B48", transmissions: ["Automatic", "Manual"] },
+  },
+  2020: {
+    M240i: { chassis: "F22", engine: "B58", transmissions: ["Automatic", "Manual"] },
+  },
+  2022: {
+    M340i: { chassis: "G20", engine: "B58", transmissions: ["Automatic"] },
+  },
+} as const
+
 export function HierarchicalCarSelector({
   onSelectionComplete,
   initialSelection,
@@ -589,6 +602,29 @@ export function HierarchicalCarSelector({
   }
 
   // Full UI
+  const years = Object.keys(DATA)
+    .map((y) => Number(y))
+    .sort((a, b) => a - b)
+  const models = selection.year ? Object.keys(DATA[selection.year] as any) : []
+  const current = selection.year && selection.modelName ? (DATA as any)[selection.year]?.[selection.modelName] : null
+
+  function emit(next: Partial<CarSelection>) {
+    const sel: CarSelection = {
+      year: next.year ?? selection.year,
+      modelId: next.modelId ?? selection.modelId,
+      modelName: next.modelName ?? selection.modelName,
+      chassisCode: next.chassisCode ?? selection.chassisCode,
+      chassisName: next.chassisName ?? selection.chassisName,
+      bodyType: next.bodyType ?? selection.bodyType,
+      engineCode: next.engineCode ?? selection.engineCode,
+      engineName: next.engineName ?? selection.engineName,
+      transmissionCode: next.transmissionCode ?? selection.transmissionCode,
+      transmissionName: next.transmissionName ?? selection.transmissionName,
+      buildDate: next.buildDate ?? selection.buildDate,
+    }
+    onSelectionComplete(sel)
+  }
+
   return (
     <Card className={["w-full", className].filter(Boolean).join(" ")}>
       {showTitle && (
@@ -609,12 +645,18 @@ export function HierarchicalCarSelector({
           {currentStep === 1 && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Production Year</label>
-              <Select onValueChange={(v) => loadModelsForYear(Number.parseInt(v, 10))}>
+              <Select
+                onValueChange={(v) => {
+                  const y = Number.parseInt(v, 10)
+                  setSelection({ year: y })
+                  emit({ year: y })
+                }}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableYears.map((y) => (
+                  {years.map((y) => (
                     <SelectItem key={y} value={y.toString()}>
                       {y}
                     </SelectItem>
@@ -628,100 +670,73 @@ export function HierarchicalCarSelector({
             <div className="space-y-2">
               <label className="text-sm font-medium">Models offered in {selection.year}</label>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {yearModels.map((m) => (
+                {models.map((m) => (
                   <Card
-                    key={`${m.series}-${m.label}`}
+                    key={m}
                     className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => loadChassisForModel(m.label)}
+                    onClick={() => {
+                      setSelection({ modelName: m })
+                      emit({ modelName: m })
+                    }}
                   >
                     <CardContent className="p-4">
                       <div className="space-y-1">
-                        <div className="font-semibold">{m.label}</div>
-                        <div className="text-xs text-gray-600">{m.series}</div>
+                        <div className="font-semibold">{m}</div>
+                        <div className="text-xs text-gray-600">BMW</div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-              {yearModels.length === 0 && <div className="text-sm text-gray-500">No models found for this year.</div>}
+              {models.length === 0 && <div className="text-sm text-gray-500">No models found for this year.</div>}
             </div>
           )}
 
           {currentStep === 3 && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Chassis & Body</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {availableChassis.map((c) => (
-                  <Card
-                    key={`${c.chassis}-${c.body}-${c.drivetrain ?? ""}`}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => selectChassis(c.chassis)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="space-y-1">
-                        <div className="font-semibold">{c.chassis}</div>
-                        <div className="text-xs text-gray-600">
-                          {c.body}
-                          {c.drivetrain ? ` • ${c.drivetrain}` : ""}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              {availableChassis.length === 0 && (
-                <div className="text-sm text-gray-500">No chassis options found for this model and year.</div>
-              )}
+              <input
+                className="border rounded-md p-2 bg-gray-50"
+                value={current?.chassis || ""}
+                readOnly
+                placeholder="-"
+              />
             </div>
           )}
 
           {currentStep === 4 && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Engine Code</label>
-              <Select onValueChange={handleEngine} disabled={loading}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select engine" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableEngines.map((e) => (
-                    <SelectItem key={e.code} value={e.code}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{e.code}</span>
-                        {e.name && <span className="text-xs text-gray-500">{e.name}</span>}
-                      </div>
-                    </SelectItem>
-                  ))}
-                  {availableEngines.length === 0 && <div className="p-2 text-xs text-gray-500">No engines found</div>}
-                </SelectContent>
-              </Select>
+              <input
+                className="border rounded-md p-2 bg-gray-50"
+                value={current?.engine || ""}
+                readOnly
+                placeholder="-"
+              />
             </div>
           )}
 
           {currentStep === 5 && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Transmission</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {availableTransmissions.map((t) => (
-                  <Card
-                    key={t.transmission_code}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => handleTransmission(t.transmission_code)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="space-y-1">
-                        <div className="font-semibold">{t.transmission_name}</div>
-                        <div className="text-xs text-gray-600">
-                          {t.transmission_type || "Transmission"} • {t.gear_count || "?"}-Speed
-                        </div>
-                        {t.manufacturer && <div className="text-[11px] text-gray-500">{t.manufacturer}</div>}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {availableTransmissions.length === 0 && (
-                  <div className="text-sm text-gray-500">No transmissions found</div>
-                )}
-              </div>
+              <Select
+                onValueChange={(v) => {
+                  setSelection({ transmissionCode: v })
+                  emit({ transmissionCode: v })
+                }}
+                disabled={!current}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select transmission" />
+                </SelectTrigger>
+                <SelectContent>
+                  {current?.transmissions?.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

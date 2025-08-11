@@ -3,49 +3,33 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { getSupabaseClient } from "@/lib/supabase"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getSupabaseClient, isSupabaseConfigured, getMissingSupabaseEnv } from "@/lib/supabase"
+import { Input } from "@/components/ui/input"
+import Link from "next/link"
 
 export default function SignInClient() {
-  const router = useRouter()
-  const params = useSearchParams()
-  const redirectTo = params.get("redirect") || "/dashboard"
-
+  const supabase = getSupabaseClient()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const supabase = getSupabaseClient()
+  const [loading, setLoading] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-
-    if (!isSupabaseConfigured) {
-      setError(
-        `Supabase is not configured. Missing: ${getMissingSupabaseEnv().join(
-          ", ",
-        )}. Please add the environment variables and redeploy.`,
-      )
-      return
-    }
-
+    setLoading(true)
     try {
-      setLoading(true)
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) {
-        setError(signInError.message)
-        return
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setError(error.message)
+      } else {
+        // Redirect to dashboard
+        window.location.href = "/dashboard"
       }
-      router.push(redirectTo)
     } catch (err: any) {
-      setError(err?.message || "Unexpected error while signing in.")
+      setError(err?.message ?? "Sign in failed")
     } finally {
       setLoading(false)
     }
@@ -55,49 +39,45 @@ export default function SignInClient() {
     <Card>
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
-        <CardDescription>Access your account</CardDescription>
       </CardHeader>
       <CardContent>
-        {!isSupabaseConfigured && (
-          <Alert className="mb-4" variant="destructive">
-            <AlertDescription>
-              {"Supabase is not configured for this deployment. Sign-in will be disabled."}
-            </AlertDescription>
-          </Alert>
-        )}
-        {error && (
-          <Alert className="mb-4" variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email
+            </label>
             <Input
               id="email"
               type="email"
-              autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              onChange={(e) => setEmail(e.currentTarget.value)}
               required
+              placeholder="you@example.com"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+          <div className="space-y-1">
+            <label htmlFor="password" className="text-sm font-medium">
+              Password
+            </label>
             <Input
               id="password"
               type="password"
-              autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              onChange={(e) => setPassword(e.currentTarget.value)}
               required
+              placeholder="••••••••"
             />
           </div>
-          <Button className="w-full" type="submit" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+          {error && <div className="text-sm text-red-600">{error}</div>}
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? "Signing in..." : "Sign in"}
           </Button>
+          <div className="text-sm text-center text-muted-foreground">
+            Don{"'"}t have an account?{" "}
+            <Link href="/auth/sign-up" className="underline">
+              Create one
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>
