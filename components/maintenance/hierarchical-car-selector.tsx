@@ -15,6 +15,7 @@ import {
   offlineBodyForModelYearChassis,
   offlineChassisByCode,
 } from "@/lib/catalog-offline"
+import { Label } from "@/components/ui/label"
 
 export interface CarSelection {
   year?: number
@@ -62,16 +63,166 @@ type TransmissionRow = {
 
 // Simple demo dataset covering common BMW selections
 const DATA = {
-  2018: {
-    "330i": { chassis: "F30", engine: "B48", transmissions: ["Automatic", "Manual"] },
-  },
-  2020: {
-    M240i: { chassis: "F22", engine: "B58", transmissions: ["Automatic", "Manual"] },
-  },
-  2022: {
-    M340i: { chassis: "G20", engine: "B58", transmissions: ["Automatic"] },
-  },
+  years: ["2013", "2014", "2015", "2016", "2017", "2018"],
+  modelsByYear: {
+    "2013": ["F30 328i", "F30 335i", "F22 228i", "F22 M235i"],
+    "2014": ["F30 328i", "F30 335i", "F22 228i", "F22 M235i"],
+    "2015": ["F30 328i", "F30 335i", "F22 228i", "F22 M235i", "F87 M2"],
+    "2016": ["F30 340i", "F22 230i", "F87 M2"],
+    "2017": ["F30 330i", "F30 340i", "F22 230i", "F87 M2"],
+    "2018": ["F30 330i", "F30 340i", "F22 230i", "F87 M2 Competition"],
+  } as Record<string, string[]>,
+  chassisByModel: {
+    "F30 328i": ["F30"],
+    "F30 335i": ["F30"],
+    "F30 340i": ["F30"],
+    "F30 330i": ["F30"],
+    "F22 228i": ["F22"],
+    "F22 230i": ["F22"],
+    "F22 M235i": ["F22"],
+    "F87 M2": ["F87"],
+    "F87 M2 Competition": ["F87"],
+  } as Record<string, string[]>,
+  enginesByChassis: {
+    F30: ["N20", "N26", "N55", "B58"],
+    F22: ["N20", "N55", "B48"],
+    F87: ["N55", "S55"],
+  } as Record<string, string[]>,
+  transmissionsByEngine: {
+    N20: ["6MT", "8HP"],
+    N26: ["8HP"],
+    N55: ["6MT", "8HP", "DCT"],
+    B58: ["6MT", "8HP"],
+    B48: ["6MT", "8HP"],
+    S55: ["6MT", "DCT"],
+  } as Record<string, string[]>,
 } as const
+
+function HierarchicalCarSelectorInner({
+  value,
+  onChange,
+}: {
+  value?: { year: string; model: string; chassis: string; engine: string; transmission: string }
+  onChange?: (next: { year: string; model: string; chassis: string; engine: string; transmission: string }) => void
+}) {
+  const val = {
+    year: value?.year || "",
+    model: value?.model || "",
+    chassis: value?.chassis || "",
+    engine: value?.engine || "",
+    transmission: value?.transmission || "",
+  }
+
+  const models = useMemo(() => DATA.modelsByYear[val.year] || [], [val.year])
+  const chassis = useMemo(() => DATA.chassisByModel[val.model] || [], [val.model])
+  const engines = useMemo(() => (val.chassis ? DATA.enginesByChassis[val.chassis] || [] : []), [val.chassis])
+  const transmissions = useMemo(() => (val.engine ? DATA.transmissionsByEngine[val.engine] || [] : []), [val.engine])
+
+  function set<K extends keyof typeof val>(key: K, next: string) {
+    const base = { ...val, [key]: next }
+    // Cascade resets
+    if (key === "year") {
+      base.model = ""
+      base.chassis = ""
+      base.engine = ""
+      base.transmission = ""
+    } else if (key === "model") {
+      base.chassis = ""
+      base.engine = ""
+      base.transmission = ""
+    } else if (key === "chassis") {
+      base.engine = ""
+      base.transmission = ""
+    } else if (key === "engine") {
+      base.transmission = ""
+    }
+    onChange?.(base)
+  }
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="space-y-2">
+        <Label>Year</Label>
+        <Select value={val.year} onValueChange={(v) => set("year", v)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select year" />
+          </SelectTrigger>
+          <SelectContent>
+            {DATA.years.map((y) => (
+              <SelectItem key={y} value={y}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Model</Label>
+        <Select value={val.model} onValueChange={(v) => set("model", v)} disabled={!val.year}>
+          <SelectTrigger>
+            <SelectValue placeholder={val.year ? "Select model" : "Select year first"} />
+          </SelectTrigger>
+          <SelectContent>
+            {models.map((m) => (
+              <SelectItem key={m} value={m}>
+                {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Chassis</Label>
+        <Select value={val.chassis} onValueChange={(v) => set("chassis", v)} disabled={!val.model}>
+          <SelectTrigger>
+            <SelectValue placeholder={val.model ? "Select chassis" : "Select model first"} />
+          </SelectTrigger>
+          <SelectContent>
+            {chassis.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Engine</Label>
+        <Select value={val.engine} onValueChange={(v) => set("engine", v)} disabled={!val.chassis}>
+          <SelectTrigger>
+            <SelectValue placeholder={val.chassis ? "Select engine" : "Select chassis first"} />
+          </SelectTrigger>
+          <SelectContent>
+            {engines.map((e) => (
+              <SelectItem key={e} value={e}>
+                {e}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Transmission</Label>
+        <Select value={val.transmission} onValueChange={(v) => set("transmission", v)} disabled={!val.engine}>
+          <SelectTrigger>
+            <SelectValue placeholder={val.engine ? "Select transmission" : "Select engine first"} />
+          </SelectTrigger>
+          <SelectContent>
+            {transmissions.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+}
 
 export function HierarchicalCarSelector({
   onSelectionComplete,
@@ -602,11 +753,9 @@ export function HierarchicalCarSelector({
   }
 
   // Full UI
-  const years = Object.keys(DATA)
-    .map((y) => Number(y))
-    .sort((a, b) => a - b)
-  const models = selection.year ? Object.keys(DATA[selection.year] as any) : []
-  const current = selection.year && selection.modelName ? (DATA as any)[selection.year]?.[selection.modelName] : null
+  const years = DATA.years
+  const models = selection.year ? DATA.modelsByYear[selection.year.toString()] || [] : []
+  const current = selection.year && selection.modelName ? DATA.modelsByYear[selection.year.toString()] : null
 
   function emit(next: Partial<CarSelection>) {
     const sel: CarSelection = {
@@ -697,7 +846,7 @@ export function HierarchicalCarSelector({
               <label className="text-sm font-medium">Chassis & Body</label>
               <input
                 className="border rounded-md p-2 bg-gray-50"
-                value={current?.chassis || ""}
+                value={current?.includes(selection.modelName || "") ? selection.modelName : ""}
                 readOnly
                 placeholder="-"
               />
@@ -709,7 +858,7 @@ export function HierarchicalCarSelector({
               <label className="text-sm font-medium">Engine Code</label>
               <input
                 className="border rounded-md p-2 bg-gray-50"
-                value={current?.engine || ""}
+                value={current?.includes(selection.modelName || "") ? selection.modelName : ""}
                 readOnly
                 placeholder="-"
               />
@@ -730,11 +879,13 @@ export function HierarchicalCarSelector({
                   <SelectValue placeholder="Select transmission" />
                 </SelectTrigger>
                 <SelectContent>
-                  {current?.transmissions?.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
+                  {current?.includes(selection.modelName || "") ? (
+                    <SelectItem key={selection.modelName} value={selection.modelName}>
+                      {selection.modelName}
                     </SelectItem>
-                  ))}
+                  ) : (
+                    <div className="p-2 text-xs text-gray-500">No transmissions found</div>
+                  )}
                 </SelectContent>
               </Select>
             </div>

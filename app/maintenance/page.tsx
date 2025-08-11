@@ -1,15 +1,14 @@
-import MaintenanceClientPage from "./maintenance-client-page"
-import type { Metadata } from "next"
+// Server wrapper for /maintenance. Do NOT mark as "use client".
+import MaintenanceClient from "./maintenance-client"
 
-// Server-only route config to avoid prerender errors
 export const dynamic = "force-dynamic"
 export const revalidate = 0
-
-export const metadata: Metadata = {
-  title: "Maintenance",
-  description: "Track and explore maintenance for your vehicles.",
-}
+export const fetchCache = "force-no-store"
 
 export default function MaintenancePage() {
-  return <MaintenanceClientPage />
+  return (
+    <main className="min-h-[60vh] mx-auto max-w-5xl p-6">
+      <MaintenanceClient />
+    </main>
+  )
 }

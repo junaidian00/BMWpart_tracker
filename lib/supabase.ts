@@ -4,61 +4,67 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
  * Public env helpers
  * In the browser, only NEXT_PUBLIC_* variables are available.
  */
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+function getPublicSupabaseEnv() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return { url, anon }
+}
 
-const REQUIRED_ENV = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"] as const
+export function isSupabaseConfigured(): boolean {
+  const { url, anon } = getPublicSupabaseEnv()
+  return Boolean(url && anon && url !== "your-supabase-url" && anon !== "your-supabase-anon-key")
+}
+
+export function hasSupabaseEnv(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+}
 
 export function getMissingSupabaseEnv(): string[] {
   const missing: string[] = []
-  for (const k of REQUIRED_ENV) {
-    if (!process.env[k] || process.env[k] === "") missing.push(k)
-  }
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL")
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
   return missing
 }
 
-const configured = getMissingSupabaseEnv().length === 0
+// Client-side singleton
+let browserClient: SupabaseClient | null = null
 
-// For compatibility with earlier code that might import a boolean:
-export const isSupabaseConfigured = configured
-// And a callable variant for convenience in client components:
-export function isSupabaseConfiguredFn() {
-  return configured
-}
-
-let singleton: SupabaseClient | null = null
-
+/**
+ * Lazily creates a singleton Supabase browser client.
+ * Avoids throwing at import time if env vars are missing by returning a safe shim.
+ */
 export function getSupabaseClient(): SupabaseClient {
-  if (!configured) {
-    throw new Error("Supabase is not configured. Missing: " + getMissingSupabaseEnv().join(", "))
+  if (browserClient) return browserClient
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    browserClient = createShimClient()
+    return browserClient
   }
-  if (!singleton) {
-    singleton = createClient(URL, ANON, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  }
-  return singleton
+
+  browserClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  })
+  return browserClient
 }
 
-// A safe shim for modules that import { supabase } directly.
-// If not configured, this throws on first use with a clear message.
-export const supabase: SupabaseClient = (() => {
-  if (configured) return getSupabaseClient()
-  // @ts-expect-error - we’re returning a proxy-like minimal object to provide a clearer error
-  return new Proxy(
-    {},
-    {
-      get() {
-        throw new Error(
-          "Supabase client accessed but environment is not configured. Missing: " + getMissingSupabaseEnv().join(", "),
-        )
-      },
-    },
-  )
-})()
+/**
+ * A lazy proxy export that behaves like `supabase` but only initializes when used.
+ * This prevents crashes during import time if env vars are missing.
+ */
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabaseClient()
+    const value = (client as any)[prop]
+    return typeof value === "function" ? value.bind(client) : value
+  },
+}) as SupabaseClient
 
 // Server-side client for server actions/route handlers only.
 // Note: Non-public env vars only work on the server.
@@ -76,7 +82,52 @@ export const createServerClient = () => {
   })
 }
 
-// Database types (kept for broader app usage)
+// A minimal safe shim client used when env vars are missing.
+// It mirrors enough of the Supabase API used in this app so it doesn't crash.
+function createShimClient(): SupabaseClient {
+  const q = {
+    select: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    insert: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    update: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    delete: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    single: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    eq() {
+      return this
+    },
+    lte() {
+      return this
+    },
+    gte() {
+      return this
+    },
+    in() {
+      return this
+    },
+    or() {
+      return this
+    },
+    order() {
+      return this
+    },
+    limit() {
+      return this
+    },
+  }
+  const shim: any = {
+    from() {
+      return q
+    },
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } }, error: null }),
+      signInWithPassword: async () => ({ data: { user: null }, error: { message: "Supabase not configured" } }),
+      signOut: async () => ({ error: null }),
+    },
+  }
+  return shim as SupabaseClient
+}
+
+// Database types (kept from your original file)
 export interface Vehicle {
   id: string
   user_id: string

@@ -4,9 +4,43 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getSupabaseClient, getMissingSupabaseEnv } from "@/lib/supabase"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+
+const partCategories = [
+  "Engine Components",
+  "Forced Induction",
+  "Transmission",
+  "Suspension & Steering",
+  "Brake System",
+  "Electrical System",
+  "Cooling System",
+  "Exhaust System",
+  "Fuel System",
+  "Interior Parts",
+  "Exterior Parts",
+  "Wheels & Tires",
+  "Performance Parts",
+]
+
+const compatibleModels = [
+  "F30 3 Series Sedan",
+  "F31 3 Series Touring",
+  "F32 4 Series Coupe",
+  "F33 4 Series Convertible",
+  "F36 4 Series Gran Coupe",
+  "F22 2 Series Coupe",
+  "F23 2 Series Convertible",
+  "E90 3 Series",
+  "E92 3 Series",
+  "Other BMW Models",
+]
 
 export default function SellClient() {
   const router = useRouter()
@@ -14,20 +48,35 @@ export default function SellClient() {
   const supabaseReady = missing.length === 0
 
   const [form, setForm] = useState({
-    partNumber: "",
     title: "",
+    partNumber: "",
+    category: "",
+    compatibleModels: [] as string[],
+    condition: "",
     price: "",
     description: "",
+    location: "",
+    shipping: false,
+    localPickup: true,
   })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggleModel(model: string) {
+    setForm((prev) => ({
+      ...prev,
+      compatibleModels: prev.compatibleModels.includes(model)
+        ? prev.compatibleModels.filter((m) => m !== model)
+        : [...prev.compatibleModels, model],
+    }))
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setLoading(true)
     setError(null)
     setSuccess(null)
-    setLoading(true)
     try {
       if (!supabaseReady) {
         setSuccess("Demo mode: listing created locally (not persisted).")
@@ -35,15 +84,20 @@ export default function SellClient() {
         return
       }
       const supabase = getSupabaseClient()
-      // Optional: this table may not exist in your DB yet; if so, demo flow still works.
       const { error: insertError } = await supabase.from("listings").insert({
-        part_number: form.partNumber,
         title: form.title,
+        part_number: form.partNumber || null,
+        category: form.category || null,
+        models: form.compatibleModels,
+        condition: form.condition || null,
         price: Number(form.price || 0),
         description: form.description || null,
+        location: form.location || null,
+        shipping: form.shipping,
+        local_pickup: form.localPickup,
       })
       if (insertError) {
-        setError(insertError.message ?? "Unable to create listing")
+        setError(insertError.message || "Unable to create listing")
         return
       }
       setSuccess("Listing created!")
@@ -58,7 +112,8 @@ export default function SellClient() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>New Listing</CardTitle>
+        <CardTitle>Sell BMW Parts</CardTitle>
+        <CardDescription>List your BMW parts on the marketplace</CardDescription>
       </CardHeader>
       <CardContent>
         {!supabaseReady && (
@@ -66,62 +121,130 @@ export default function SellClient() {
             Missing env vars: {missing.join(", ")}. Running in demo mode.
           </div>
         )}
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="pn" className="block text-sm font-medium">
-              Part Number
-            </label>
-            <input
-              id="pn"
-              className="mt-1 block w-full rounded-md border px-3 py-2"
-              value={form.partNumber}
-              onChange={(e) => setForm((f) => ({ ...f, partNumber: e.target.value }))}
-              required
-              placeholder="e.g. 11368604227"
-            />
+        <form onSubmit={onSubmit} className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="title">Listing Title *</Label>
+              <Input
+                id="title"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="e.g., BMW F30 335i Turbocharger"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="pn">BMW Part Number</Label>
+              <Input
+                id="pn"
+                value={form.partNumber}
+                onChange={(e) => setForm((f) => ({ ...f, partNumber: e.target.value }))}
+                placeholder="e.g., 11657647003"
+              />
+            </div>
           </div>
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium">
-              Title
-            </label>
-            <input
-              id="title"
-              className="mt-1 block w-full rounded-md border px-3 py-2"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              required
-              placeholder="e.g. BMW N55 Valve Cover"
-            />
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <Label>Category *</Label>
+              <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {partCategories.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Condition *</Label>
+              <Select value={form.condition} onValueChange={(v) => setForm((f) => ({ ...f, condition: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select condition" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="excellent">Excellent</SelectItem>
+                  <SelectItem value="good">Good</SelectItem>
+                  <SelectItem value="fair">Fair</SelectItem>
+                  <SelectItem value="poor">For Parts Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
           <div>
-            <label htmlFor="price" className="block text-sm font-medium">
-              Price (USD)
-            </label>
-            <input
-              id="price"
-              type="number"
-              min="0"
-              step="0.01"
-              className="mt-1 block w-full rounded-md border px-3 py-2"
-              value={form.price}
-              onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-              required
-              placeholder="200.00"
-            />
-          </div>
-          <div>
-            <label htmlFor="desc" className="block text-sm font-medium">
-              Description
-            </label>
-            <textarea
-              id="desc"
-              className="mt-1 block w-full rounded-md border px-3 py-2"
-              rows={4}
+            <Label>Description *</Label>
+            <Textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="Condition, fitment notes, etc."
+              placeholder="Describe the condition, installation notes, etc."
+              rows={5}
+              required
             />
           </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="price">Price (USD) *</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                placeholder="0.00"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="location">Location *</Label>
+              <Input
+                id="location"
+                value={form.location}
+                onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+                placeholder="City, State"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Compatible Models</Label>
+            <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {compatibleModels.map((m) => {
+                const selected = form.compatibleModels.includes(m)
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => toggleModel(m)}
+                    className={`text-left rounded-md border px-3 py-2 text-sm transition ${
+                      selected ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"
+                    }`}
+                    aria-pressed={selected}
+                  >
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
+            {form.compatibleModels.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {form.compatibleModels.map((m) => (
+                  <Badge key={m} variant="secondary">
+                    {m}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
           {error && (
             <div role="alert" className="text-sm text-red-600">
               {error}
@@ -132,8 +255,9 @@ export default function SellClient() {
               {success}
             </div>
           )}
+
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Submitting..." : supabaseReady ? "Create Listing" : "Create (Demo Mode)"}
+            {loading ? "Creating..." : supabaseReady ? "Create Listing" : "Create Listing (Demo Mode)"}
           </Button>
         </form>
       </CardContent>

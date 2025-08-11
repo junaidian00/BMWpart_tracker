@@ -3,81 +3,94 @@
 import type React from "react"
 
 import { useState } from "react"
-import { getSupabaseClient } from "@/lib/supabase"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
+import { getSupabaseClient, getMissingSupabaseEnv } from "@/lib/supabase"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import Link from "next/link"
+import { Label } from "@/components/ui/label"
 
 export default function SignInClient() {
-  const supabase = getSupabaseClient()
+  const router = useRouter()
+  const missing = getMissingSupabaseEnv()
+  const supabaseReady = missing.length === 0
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setLoading(true)
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError(error.message)
-      } else {
-        // Redirect to dashboard
-        window.location.href = "/dashboard"
+      if (!supabaseReady) {
+        // Demo mode: pretend sign-in succeeds.
+        router.push("/dashboard")
+        return
       }
+
+      const supabase = getSupabaseClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setError(signInError.message || "Unable to sign in")
+        return
+      }
+      router.push("/dashboard")
     } catch (err: any) {
-      setError(err?.message ?? "Sign in failed")
+      setError(err?.message || "Unexpected error")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Card>
+    <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
+        <CardDescription>Access your dashboard and manage your vehicles.</CardDescription>
       </CardHeader>
       <CardContent>
+        {!supabaseReady && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            Missing env vars: {missing.join(", ")}. Running in demo mode.
+          </p>
+        )}
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <label htmlFor="email" className="text-sm font-medium">
-              Email
-            </label>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.currentTarget.value)}
-              required
               placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
             />
           </div>
-          <div className="space-y-1">
-            <label htmlFor="password" className="text-sm font-medium">
-              Password
-            </label>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               type="password"
+              placeholder="********"
               value={password}
-              onChange={(e) => setPassword(e.currentTarget.value)}
+              onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="••••••••"
+              autoComplete="current-password"
             />
           </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && (
+            <div role="alert" className="text-sm text-red-600">
+              {error}
+            </div>
+          )}
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Signing in..." : "Sign in"}
           </Button>
-          <div className="text-sm text-center text-muted-foreground">
-            Don{"'"}t have an account?{" "}
-            <Link href="/auth/sign-up" className="underline">
-              Create one
-            </Link>
-          </div>
         </form>
       </CardContent>
     </Card>
