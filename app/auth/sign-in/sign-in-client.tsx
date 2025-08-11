@@ -10,17 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { signInWithEmail, createTestUser } from "@/lib/auth"
 
-// Server Component wrapper for the Sign In route.
-// Route config must be exported from a Server Component.
-export const dynamic = "force-dynamic"
-export const revalidate = 0
-export const fetchCache = "force-no-store"
-
-export default function SignInPage() {
-  return <SignInClient />
-}
-
-function SignInClient() {
+export default function SignInClient() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
