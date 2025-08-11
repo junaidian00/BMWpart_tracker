@@ -10,12 +10,12 @@ export interface BMWOEMPart {
   is_discontinued: boolean
   superseded_by: string | null
 
-  category_name?: string
-  category_code?: string
+  category_name?: string | null
+  category_code?: string | null
 
   compatible_chassis?: string[]
   compatible_engines?: string[]
-  compatible_body_types?: string[] // optional in fallback dataset
+  compatible_body_types?: string[]
   earliest_year?: number | null
   latest_year?: number | null
 
@@ -70,7 +70,6 @@ export interface SearchOEMPartsParams {
   offset?: number
 }
 
-// Backward compatible alias
 export type SearchFilters = SearchOEMPartsParams
 
 function comprehensiveFallbackFilter(list: ComprehensivePart[], params: SearchOEMPartsParams): BMWOEMPart[] {
@@ -106,7 +105,7 @@ function comprehensiveFallbackFilter(list: ComprehensivePart[], params: SearchOE
   }
 
   if (params.bodyType) {
-    const bt = params.bodyType.toLowerCase()
+    const bt = (params.bodyType || "").toLowerCase()
     parts = parts.filter((p: any) => {
       const arr: string[] | undefined = p.compatible_body_types
       if (!arr || arr.length === 0) return true
@@ -127,8 +126,8 @@ function comprehensiveFallbackFilter(list: ComprehensivePart[], params: SearchOE
     price_msrp: p.price_msrp ?? null,
     is_discontinued: !!p.is_discontinued,
     superseded_by: (p as any).superseded_by ?? null,
-    category_name: p.category_name,
-    category_code: p.category_code,
+    category_name: p.category_name ?? null,
+    category_code: p.category_code ?? null,
     compatible_chassis: p.compatible_chassis ?? [],
     compatible_engines: p.compatible_engines ?? [],
     compatible_body_types: (p as any).compatible_body_types ?? [],
@@ -183,7 +182,6 @@ export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWO
       latest_year: row.latest_year ?? null,
     }))
   } catch {
-    // Fallback: comprehensive dataset
     return comprehensiveFallbackFilter(COMPREHENSIVE_BMW_PARTS, params)
   }
 }
@@ -215,7 +213,6 @@ export async function getPartByNumber(partNumber: string): Promise<BMWOEMPart | 
       }
     }
 
-    // Fallback to comprehensive list
     const c = COMPREHENSIVE_BMW_PARTS.find((p) => p.part_number === partNumber)
     if (!c) return null
     return {
@@ -226,8 +223,8 @@ export async function getPartByNumber(partNumber: string): Promise<BMWOEMPart | 
       price_msrp: c.price_msrp ?? null,
       is_discontinued: !!c.is_discontinued,
       superseded_by: (c as any).superseded_by ?? null,
-      category_name: c.category_name,
-      category_code: c.category_code,
+      category_name: c.category_name ?? null,
+      category_code: c.category_code ?? null,
       compatible_chassis: c.compatible_chassis ?? [],
       compatible_engines: c.compatible_engines ?? [],
       compatible_body_types: (c as any).compatible_body_types ?? [],
@@ -245,8 +242,8 @@ export async function getPartByNumber(partNumber: string): Promise<BMWOEMPart | 
       price_msrp: c.price_msrp ?? null,
       is_discontinued: !!c.is_discontinued,
       superseded_by: (c as any).superseded_by ?? null,
-      category_name: c.category_name,
-      category_code: c.category_code,
+      category_name: c.category_name ?? null,
+      category_code: c.category_code ?? null,
       compatible_chassis: c.compatible_chassis ?? [],
       compatible_engines: c.compatible_engines ?? [],
       compatible_body_types: (c as any).compatible_body_types ?? [],
@@ -341,14 +338,9 @@ export type VehiclePartFilters = {
   offset?: number
 }
 
-/**
- * Returns parts filtered for a specific vehicle configuration.
- * This is a convenience wrapper around searchOEMParts().
- */
 export async function getVehicleSpecificParts(filters: VehiclePartFilters): Promise<BMWOEMPart[]> {
   return searchOEMParts({
     query: filters.query,
-    partNumber: undefined,
     categoryCode: filters.categoryCode,
     chassisCode: filters.chassisCode,
     seriesCode: filters.seriesCode,

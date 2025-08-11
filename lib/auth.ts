@@ -45,10 +45,6 @@ export async function signIn(email: string, password: string) {
   return data
 }
 
-/**
- * signInWithEmail is a compatibility alias for password-based email sign-in.
- * It delegates to signIn(email, password).
- */
 export async function signInWithEmail(email: string, password: string) {
   return signIn(email, password)
 }
@@ -85,8 +81,6 @@ export async function createTestUser() {
   })
   if (upErr) throw upErr
 
-  // If email confirmation is enabled, user will need to verify before session exists. [^1]
-  // Attempt sign-in to provide a usable session if confirmation is disabled. [^1]
   await supabase.auth.signInWithPassword({ email, password }).catch(() => {})
 
   return {

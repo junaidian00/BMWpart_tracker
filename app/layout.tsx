@@ -1,35 +1,26 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
 import "./globals.css"
-import VersionBadge from "@/components/system/version-badge"
+import { ClientProviders } from "@/components/providers/client-providers"
+import { MainNav } from "@/components/layout/main-nav"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.dev",
+  title: "BMW Parts Marketplace - F22, F23, F30, F32, F33, F36 Specialists",
+  description:
+    "The ultimate marketplace for BMW F-chassis parts. Find OEM and aftermarket parts for your F22, F23, F30, F31, F32, F33, and F36 BMW with comprehensive compatibility information.",
+  keywords: "BMW parts, F30, F32, F33, F36, F22, F23, OEM parts, BMW marketplace, 3 series, 4 series, 2 series",
+    generator: 'v0.dev'
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <style>{`
-html {
-  font-family: ${GeistSans.style.fontFamily};
-  --font-sans: ${GeistSans.variable};
-  --font-mono: ${GeistMono.variable};
-}
-        `}</style>
-      </head>
-      <body>
-        {children}
-        <VersionBadge />
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen bg-white text-gray-900 antialiased">
+        <ClientProviders>
+          {/* Ensure every component using useAuth is inside the provider */}
+          <MainNav />
+          <main className="min-h-screen pt-16">{children}</main>
+        </ClientProviders>
       </body>
     </html>
   )
