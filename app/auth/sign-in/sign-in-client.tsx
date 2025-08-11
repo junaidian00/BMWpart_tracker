@@ -1,136 +1,105 @@
 "use client"
 
 import type React from "react"
-import Link from "next/link"
+
 import { useState } from "react"
-import { Car } from "lucide-react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { signInWithEmail, createTestUser } from "@/lib/auth"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getSupabaseClient, isSupabaseConfigured, getMissingSupabaseEnv } from "@/lib/supabase"
 
 export default function SignInClient() {
+  const router = useRouter()
+  const params = useSearchParams()
+  const redirectTo = params.get("redirect") || "/dashboard"
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const supabase = getSupabaseClient()
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
-    setSuccessMsg(null)
-    setErrorMsg(null)
-    try {
-      await signInWithEmail(email, password)
-      setSuccessMsg("Signed in successfully.")
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? "Failed to sign in.")
-    } finally {
-      setLoading(false)
-    }
-  }
+    setError(null)
 
-  const handleCreateTestUser = async () => {
-    setLoading(true)
-    setSuccessMsg(null)
-    setErrorMsg(null)
+    if (!isSupabaseConfigured) {
+      setError(
+        `Supabase is not configured. Missing: ${getMissingSupabaseEnv().join(
+          ", ",
+        )}. Please add the environment variables and redeploy.`,
+      )
+      return
+    }
+
     try {
-      const { email: testEmail, password: testPassword } = await createTestUser()
-      setEmail(testEmail)
-      setPassword(testPassword)
-      setSuccessMsg(`Test user created. Email: ${testEmail}`)
+      setLoading(true)
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setError(signInError.message)
+        return
+      }
+      router.push(redirectTo)
     } catch (err: any) {
-      setErrorMsg(err?.message ?? "Failed to create test user.")
+      setError(err?.message || "Unexpected error while signing in.")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link href="/" className="flex items-center justify-center space-x-2 mb-8">
-          <Car className="h-8 w-8 text-gray-800" />
-          <span className="text-2xl font-bold text-gray-900">BMWParts</span>
-        </Link>
-      </div>
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {errorMsg && (
-              <Alert variant="destructive" role="alert" aria-live="polite">
-                <AlertTitle>Sign-in failed</AlertTitle>
-                <AlertDescription>{errorMsg}</AlertDescription>
-              </Alert>
-            )}
-            {successMsg && (
-              <Alert role="status" aria-live="polite">
-                <AlertDescription>{successMsg}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleSignIn} className="space-y-3">
-              <div className="space-y-1">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-1">
-                <label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign in"}
-              </Button>
-            </form>
-
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full bg-transparent"
-                onClick={handleCreateTestUser}
-                disabled={loading}
-              >
-                {loading ? "Working..." : "Create test user"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() => (window.location.href = "/")}
-                disabled={loading}
-              >
-                Back home
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>Access your account</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!isSupabaseConfigured && (
+          <Alert className="mb-4" variant="destructive">
+            <AlertDescription>
+              {"Supabase is not configured for this deployment. Sign-in will be disabled."}
+            </AlertDescription>
+          </Alert>
+        )}
+        {error && (
+          <Alert className="mb-4" variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <Button className="w-full" type="submit" disabled={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

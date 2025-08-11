@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,18 +15,6 @@ import {
   offlineBodyForModelYearChassis,
   offlineChassisByCode,
 } from "@/lib/catalog-offline"
-
-const isSupa = () => {
-  try {
-    // supports both boolean and function styles
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return typeof isSupabaseConfigured === "function"
-      ? (isSupabaseConfigured as unknown as () => boolean)()
-      : !!isSupabaseConfigured
-  } catch {
-    return false
-  }
-}
 
 export interface CarSelection {
   year?: number
@@ -93,6 +81,10 @@ export function HierarchicalCarSelector({
   const [availableEngines, setAvailableEngines] = useState<Array<{ code: string; name?: string | null }>>([])
   const [availableTransmissions, setAvailableTransmissions] = useState<TransmissionRow[]>([])
 
+  // Refs to avoid stale state immediately after setState
+  const selectedYearRef = useRef<number | undefined>(initialSelection?.year)
+  const selectedModelRef = useRef<string | undefined>(initialSelection?.modelName)
+
   // Load production years
   useEffect(() => {
     async function loadYears() {
@@ -100,9 +92,8 @@ export function HierarchicalCarSelector({
       const fallback = Array.from({ length: 55 }, (_, i) => now - i)
       setAvailableYears(fallback)
 
-      // Try database list
       try {
-        if (!isSupa()) return
+        if (!isSupabaseConfigured) return
         setLoading(true)
         const { data, error } = await supabase.from("bmw_production_years").select("year").order("year", {
           ascending: false,
@@ -121,7 +112,7 @@ export function HierarchicalCarSelector({
 
   // Helper: enrich DB rows with chassis + engine
   async function enrichDbRows(rows: DBVariantRow[]): Promise<DBVariantRow[]> {
-    if (!isSupa() || rows.length === 0) return rows
+    if (!isSupabaseConfigured || rows.length === 0) return rows
 
     const chassisIds = Array.from(new Set(rows.map((r) => r.chassis_id).filter(Boolean))) as number[]
     const engineIds = Array.from(new Set(rows.map((r) => r.engine_id).filter(Boolean))) as number[]
@@ -161,6 +152,8 @@ export function HierarchicalCarSelector({
 
   // Load models for a specific year
   async function loadModelsForYear(year: number) {
+    selectedYearRef.current = year
+
     // Reset downstream
     setSelection({ year })
     setCurrentStep(2)
@@ -171,7 +164,7 @@ export function HierarchicalCarSelector({
 
     // DB first
     try {
-      if (isSupa()) {
+      if (isSupabaseConfigured) {
         setLoading(true)
         const { data, error } = await supabase
           .from("bmw_model_variants")
@@ -214,6 +207,8 @@ export function HierarchicalCarSelector({
 
   // When a model is selected, calculate its chassis/body options for that year
   async function loadChassisForModel(modelLabel: string) {
+    selectedModelRef.current = modelLabel
+
     setSelection((prev) => ({
       ...prev,
       modelName: modelLabel,
@@ -223,6 +218,8 @@ export function HierarchicalCarSelector({
     }))
     setAvailableEngines([])
     setCurrentStep(3)
+
+    const year = selectedYearRef.current ?? selection.year
 
     // From DB rows if present
     if (dbRowsForYear.length > 0) {
@@ -234,9 +231,11 @@ export function HierarchicalCarSelector({
     }
 
     // Offline fallback
-    if (selection.year) {
-      const fallback = offlineChassisForModelYear(modelLabel, selection.year)
+    if (year) {
+      const fallback = offlineChassisForModelYear(modelLabel, year)
       setAvailableChassis(fallback)
+    } else {
+      setAvailableChassis([])
     }
   }
 
@@ -260,10 +259,10 @@ export function HierarchicalCarSelector({
   // On chassis pick, compute engines available for model+year+chassis
   async function selectChassis(chassisCode: string) {
     const chassisInfo = offlineChassisByCode(chassisCode)
-    const bodyFromOffline =
-      selection.year && selection.modelName
-        ? offlineBodyForModelYearChassis(selection.modelName, selection.year, chassisCode)
-        : undefined
+    const modelName = selectedModelRef.current ?? selection.modelName
+    const year = selectedYearRef.current ?? selection.year
+
+    const bodyFromOffline = year && modelName ? offlineBodyForModelYearChassis(modelName, year, chassisCode) : undefined
     const chosen = availableChassis.find((c) => c.chassis === chassisCode)
     setSelection((prev) => ({
       ...prev,
@@ -276,8 +275,8 @@ export function HierarchicalCarSelector({
     setCurrentStep(4)
 
     // DB path
-    if (dbRowsForYear.length > 0 && selection.modelName) {
-      const engines = getEnginesFromDb(selection.modelName, chassisCode, dbRowsForYear)
+    if (dbRowsForYear.length > 0 && modelName) {
+      const engines = getEnginesFromDb(modelName, chassisCode, dbRowsForYear)
       if (engines.length > 0) {
         setAvailableEngines(engines)
         return
@@ -285,8 +284,8 @@ export function HierarchicalCarSelector({
     }
 
     // Offline fallback
-    if (selection.year && selection.modelName) {
-      const engines = offlineEnginesForModelYearChassis(selection.modelName, selection.year, chassisCode)
+    if (year && modelName) {
+      const engines = offlineEnginesForModelYearChassis(modelName, year, chassisCode)
       setAvailableEngines(engines)
     }
   }
@@ -318,8 +317,8 @@ export function HierarchicalCarSelector({
     async function loadTransmissions() {
       try {
         if (!selection.engineCode && !selection.modelName) return
-        if (!isSupa()) {
-          // mock
+        if (!isSupabaseConfigured) {
+          // Mock when DB is not available
           setAvailableTransmissions([
             {
               transmission_code: "ZF8HP",
@@ -366,6 +365,8 @@ export function HierarchicalCarSelector({
 
   const reset = () => {
     setSelection({})
+    selectedYearRef.current = undefined
+    selectedModelRef.current = undefined
     setYearModels([])
     setAvailableChassis([])
     setAvailableEngines([])
@@ -402,7 +403,7 @@ export function HierarchicalCarSelector({
                 getStepStatus(step.number) === "completed"
                   ? "bg-green-500 text-white"
                   : getStepStatus(step.number) === "current"
-                    ? "bg-blue-500 text-white"
+                    ? "bg-emerald-600 text-white"
                     : "bg-gray-200 text-gray-500"
               }`}
             >
@@ -596,7 +597,7 @@ export function HierarchicalCarSelector({
             <Car className="w-5 h-5" />
             BMW Vehicle Selection
           </CardTitle>
-          <CardDescription>Year → Model (year-only) → Chassis/Body → Engine → Transmission → Build</CardDescription>
+          <CardDescription>Year → Model → Chassis/Body → Engine → Transmission → Build</CardDescription>
         </CardHeader>
       )}
       <CardContent className="space-y-6">
@@ -799,3 +800,6 @@ export function HierarchicalCarSelector({
     </Card>
   )
 }
+
+// Keep named export compatibility and add default export to satisfy importer expecting default.
+export default HierarchicalCarSelector

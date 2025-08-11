@@ -1,13 +1,16 @@
-// app/auth/sign-in/page.tsx
-// Server Component wrapper for the Sign In route.
-// Route config must be exported from a Server Component.
-
-export const dynamic = "force-dynamic"
-export const revalidate: number | false = 0
-export const fetchCache = "force-no-store"
-
+import { Suspense } from "react"
 import SignInClient from "./sign-in-client"
 
+// Ensure this route never tries to statically prerender with client-only values.
+export const revalidate = 0
+export const dynamic = "force-dynamic"
+
 export default function SignInPage() {
-  return <SignInClient />
+  return (
+    <section className="mx-auto max-w-sm p-6">
+      <Suspense>
+        <SignInClient />
+      </Suspense>
+    </section>
+  )
 }

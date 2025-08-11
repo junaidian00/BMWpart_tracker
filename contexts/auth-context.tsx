@@ -3,73 +3,79 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
-import { getSupabaseClient } from "@/lib/supabase"
-import { getCurrentUser as getCurrentUserApi, signOut as signOutApi, type AuthUser } from "@/lib/auth"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+
+type AuthUser = {
+  id: string
+  email?: string | null
+} | null
 
 type AuthContextValue = {
-  user: AuthUser | null
+  user: AuthUser
   loading: boolean
-  refresh: () => Promise<void>
   signOut: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+const AuthContext = createContext<AuthContextValue>({
+  user: null,
+  loading: false,
+  signOut: async () => {},
+})
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<AuthUser>(null)
+  const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
-    let mounted = true
-    const supabase = getSupabaseClient()
+    let unsub: (() => void) | undefined
 
-    const init = async () => {
+    async function init() {
       try {
-        const u = await getCurrentUserApi()
-        if (mounted) setUser(u)
+        if (!isSupabaseConfigured) {
+          // Demo mode: no auth, immediately done.
+          setUser(null)
+          return
+        }
+        const { data } = await supabase.auth.getUser()
+        setUser(data?.user ? { id: data.user.id, email: (data.user as any).email } : null)
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ? { id: session.user.id, email: (session.user as any).email } : null)
+        })
+        unsub = () => listener?.subscription?.unsubscribe?.()
+      } catch {
+        setUser(null)
       } finally {
-        if (mounted) setLoading(false)
+        setLoading(false)
       }
     }
     init()
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async () => {
-      const u = await getCurrentUserApi()
-      if (mounted) setUser(u)
-    })
-
     return () => {
-      mounted = false
-      // Compat: older/newer supabase clients expose either unsubscribe() or subscription.unsubscribe()
-      // @ts-ignore
-      subscription?.subscription?.unsubscribe?.()
-      // @ts-ignore
-      subscription?.unsubscribe?.()
+      try {
+        unsub?.()
+      } catch {}
     }
   }, [])
 
-  const refresh = async () => {
-    setLoading(true)
-    try {
-      const u = await getCurrentUserApi()
-      setUser(u)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const signOut = async () => {
-    await signOutApi()
-    await refresh()
-  }
-
-  const value = useMemo(() => ({ user, loading, refresh, signOut }), [user, loading])
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      loading,
+      signOut: async () => {
+        try {
+          if (isSupabaseConfigured) {
+            await supabase.auth.signOut()
+          }
+          setUser(null)
+        } catch {}
+      },
+    }),
+    [user, loading],
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider")
-  return ctx
+  return useContext(AuthContext)
 }

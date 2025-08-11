@@ -1,50 +1,48 @@
 "use client"
 
-import type React from "react"
-
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import type { ReactNode } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { Loader2 } from "lucide-react"
+import { isSupabaseConfigured } from "@/lib/supabase"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
-interface AuthGuardProps {
-  children: React.ReactNode
-  requireAuth?: boolean
-  redirectTo?: string
-}
-
-export function AuthGuard({ children, requireAuth = true, redirectTo = "/auth/sign-in" }: AuthGuardProps) {
+export function AuthGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
-  const router = useRouter()
 
-  useEffect(() => {
-    if (!loading) {
-      if (requireAuth && !user) {
-        router.push(redirectTo)
-      } else if (!requireAuth && user) {
-        router.push("/dashboard")
-      }
-    }
-  }, [user, loading, requireAuth, redirectTo, router])
-
+  // While checking auth
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+      <div className="min-h-[40vh] flex items-center justify-center">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+          Checking authentication...
         </div>
       </div>
     )
   }
 
-  if (requireAuth && !user) {
-    return null
+  // If Supabase is configured and user is not signed in, block access
+  if (isSupabaseConfigured && !user) {
+    return (
+      <main className="min-h-[60vh] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Sign in required</CardTitle>
+            <CardDescription>You need to be signed in to access this page.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex gap-2">
+            <Button asChild>
+              <a href="/auth/sign-in">Sign in</a>
+            </Button>
+            <Button variant="outline" className="bg-transparent" asChild>
+              <a href="/">Go home</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    )
   }
 
-  if (!requireAuth && user) {
-    return null
-  }
-
+  // Demo mode or signed-in -> allow
   return <>{children}</>
 }

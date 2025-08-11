@@ -11,12 +11,8 @@ function getPublicSupabaseEnv() {
 }
 
 export function isSupabaseConfigured(): boolean {
-  const { url, anon } = getPublicSupabaseEnv()
-  return Boolean(url && anon && url !== "your-supabase-url" && anon !== "your-supabase-anon-key")
+  return getMissingSupabaseEnv().length === 0
 }
-
-// Client-side singleton
-let browserClient: SupabaseClient | null = null
 
 export function hasSupabaseEnv() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
@@ -24,10 +20,27 @@ export function hasSupabaseEnv() {
 
 export function getMissingSupabaseEnv(): string[] {
   const missing: string[] = []
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL")
-  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  const isServer = typeof window === "undefined"
+
+  if (isServer) {
+    // Prefer server vars, but allow public as fallback
+    const hasUrl = !!(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL)
+    const hasKey =
+      !!process.env.SUPABASE_ANON_KEY ||
+      !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!hasUrl) missing.push(isServer ? "SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)" : "NEXT_PUBLIC_SUPABASE_URL")
+    if (!hasKey)
+      missing.push("SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY on server only)")
+  } else {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL")
+    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  }
   return missing
 }
+
+// Client-side singleton
+let browserClient: SupabaseClient | null = null
 
 /**
  * Lazily creates a singleton Supabase browser client.
@@ -40,11 +53,19 @@ export function getSupabaseClient(): SupabaseClient {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    const missing = getMissingSupabaseEnv().join(", ")
-    throw new Error(`Supabase environment variables are missing: ${missing}. Please set them to use authentication.`)
+    // Provide a graceful shim client that never throws in the browser
+    const shim = createShimClient()
+    browserClient = shim
+    return browserClient
   }
 
-  browserClient = createClient(supabaseUrl, supabaseAnonKey)
+  browserClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  })
   return browserClient
 }
 
@@ -52,13 +73,7 @@ export function getSupabaseClient(): SupabaseClient {
  * Optional: a lazy proxy export that behaves like `supabase` but only initializes when used.
  * This prevents crashes during import time if env vars are missing.
  */
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(_target, prop) {
-    const client = getSupabaseClient()
-    const value = (client as any)[prop]
-    return typeof value === "function" ? value.bind(client) : value
-  },
-}) as SupabaseClient
+export const supabase = getSupabaseClient()
 
 // Server-side client for server actions/route handlers only.
 // Note: Non-public env vars only work on the server.
@@ -76,7 +91,52 @@ export const createServerClient = () => {
   })
 }
 
-// Database types (kept from your original file)
+// A minimal safe shim client used when env vars are missing.
+// It mirrors enough of the Supabase API used in this app so it doesn't crash.
+function createShimClient(): SupabaseClient {
+  const q = {
+    select: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    insert: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    update: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    delete: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    single: async () => ({ data: null as any, error: { message: "Supabase not configured" } }),
+    eq() {
+      return this
+    },
+    lte() {
+      return this
+    },
+    gte() {
+      return this
+    },
+    in() {
+      return this
+    },
+    or() {
+      return this
+    },
+    order() {
+      return this
+    },
+    limit() {
+      return this
+    },
+  }
+  const shim: any = {
+    from() {
+      return q
+    },
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } }, error: null }),
+      signInWithPassword: async () => ({ data: { user: null }, error: { message: "Supabase not configured" } }),
+      signOut: async () => ({ error: null }),
+    },
+  }
+  return shim as SupabaseClient
+}
+
+// Database types (kept for broader app usage)
 export interface Vehicle {
   id: string
   user_id: string

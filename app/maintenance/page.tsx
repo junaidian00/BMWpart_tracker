@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase"
-import { EnhancedPartsLookup } from "@/components/maintenance/enhanced-parts-lookup"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+import MaintenanceClient from "./maintenance-client"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+export const fetchCache = "force-no-store"
 
 interface Vehicle {
   id: string
@@ -37,7 +41,7 @@ interface MaintenanceRecord {
   shop_name: string | null
 }
 
-// Mock data for when database is not available
+// Mock data for demo mode
 const mockVehicles: Vehicle[] = [
   {
     id: "1",
@@ -102,58 +106,30 @@ export default function MaintenancePage() {
   const [recentRecords, setRecentRecords] = useState<MaintenanceRecord[]>([])
   const [loadingData, setLoadingData] = useState(true)
   const [vehicleMap, setVehicleMap] = useState<Record<string, Vehicle>>({})
-  const [error, setError] = useState<string | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
-  const [databaseAvailable, setDatabaseAvailable] = useState(false)
 
   useEffect(() => {
-    if (user) {
-      fetchData()
-    } else {
-      // Show demo data for non-authenticated users
+    if (loading) return
+    if (!isSupabaseConfigured || !user) {
+      // Demo mode or not signed in
       setVehicles(mockVehicles)
       setReminders(mockReminders)
       setRecentRecords(mockRecords)
       setSelectedVehicle(mockVehicles[0])
-
       const vMap: Record<string, Vehicle> = {}
-      mockVehicles.forEach((vehicle) => {
-        vMap[vehicle.id] = vehicle
-      })
+      mockVehicles.forEach((v) => (vMap[v.id] = v))
       setVehicleMap(vMap)
       setLoadingData(false)
+      return
     }
-  }, [user])
+    fetchData()
+  }, [user, loading])
 
   const fetchData = async () => {
-    if (!user) return
+    if (!isSupabaseConfigured || !user) return
 
     try {
       setLoadingData(true)
-      setError(null)
-
-      // Test database connectivity
-      const { error: testError } = await supabase.from("vehicles").select("id").limit(1)
-
-      if (testError) {
-        console.log("Database tables not available, using demo data")
-        setDatabaseAvailable(false)
-        // Use mock data
-        setVehicles(mockVehicles)
-        setReminders(mockReminders)
-        setRecentRecords(mockRecords)
-        setSelectedVehicle(mockVehicles[0])
-
-        const vMap: Record<string, Vehicle> = {}
-        mockVehicles.forEach((vehicle) => {
-          vMap[vehicle.id] = vehicle
-        })
-        setVehicleMap(vMap)
-        setLoadingData(false)
-        return
-      }
-
-      setDatabaseAvailable(true)
 
       // Fetch vehicles
       const { data: vehiclesData, error: vehiclesError } = await supabase
@@ -162,28 +138,16 @@ export default function MaintenancePage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
-      if (vehiclesError) {
-        console.error("Error fetching vehicles:", vehiclesError)
-        setVehicles(mockVehicles)
-      } else {
-        const userVehicles = vehiclesData || []
-        setVehicles(userVehicles.length > 0 ? userVehicles : mockVehicles)
+      const vehiclesToUse = vehiclesError ? mockVehicles : (vehiclesData as any as Vehicle[]) || mockVehicles
+      setVehicles(vehiclesToUse)
 
-        // Create vehicle map for lookups
-        const vMap: Record<string, Vehicle> = {}
-        const vehiclesToMap = userVehicles.length > 0 ? userVehicles : mockVehicles
-        vehiclesToMap.forEach((vehicle) => {
-          vMap[vehicle.id] = vehicle
-        })
-        setVehicleMap(vMap)
+      // Build map and auto-select
+      const vMap: Record<string, Vehicle> = {}
+      vehiclesToUse.forEach((v) => (vMap[v.id] = v))
+      setVehicleMap(vMap)
+      setSelectedVehicle(vehiclesToUse[0] || null)
 
-        // Auto-select first vehicle
-        if (vehiclesToMap.length > 0) {
-          setSelectedVehicle(vehiclesToMap[0])
-        }
-      }
-
-      // Fetch reminders
+      // Reminders
       const { data: remindersData, error: remindersError } = await supabase
         .from("maintenance_reminders")
         .select("*")
@@ -192,14 +156,9 @@ export default function MaintenancePage() {
         .order("due_date", { ascending: true })
         .limit(5)
 
-      if (remindersError) {
-        console.log("Using mock reminders data")
-        setReminders(mockReminders)
-      } else {
-        setReminders(remindersData || mockReminders)
-      }
+      setReminders(remindersError ? mockReminders : (remindersData as any) || mockReminders)
 
-      // Fetch recent records
+      // Records
       const { data: recordsData, error: recordsError } = await supabase
         .from("maintenance_records")
         .select("*")
@@ -207,53 +166,36 @@ export default function MaintenancePage() {
         .order("date_performed", { ascending: false })
         .limit(5)
 
-      if (recordsError) {
-        console.log("Using mock records data")
-        setRecentRecords(mockRecords)
-      } else {
-        setRecentRecords(recordsData || mockRecords)
-      }
-    } catch (error: any) {
-      console.log("Database error, using demo data:", error)
-      setDatabaseAvailable(false)
+      setRecentRecords(recordsError ? mockRecords : (recordsData as any) || mockRecords)
+    } catch {
+      // Fallback to demo data on any failure
       setVehicles(mockVehicles)
       setReminders(mockReminders)
       setRecentRecords(mockRecords)
       setSelectedVehicle(mockVehicles[0])
-
       const vMap: Record<string, Vehicle> = {}
-      mockVehicles.forEach((vehicle) => {
-        vMap[vehicle.id] = vehicle
-      })
+      mockVehicles.forEach((v) => (vMap[v.id] = v))
       setVehicleMap(vMap)
     } finally {
       setLoadingData(false)
     }
   }
 
-  const getVehicleForRecord = (vehicleId: string): Vehicle | null => {
-    return vehicleMap[vehicleId] || null
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
+      <div className="min-h-[60vh] grid place-items-center">
+        <div className="flex items-center gap-2 text-gray-600">
+          <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+          Loading...
         </div>
       </div>
     )
   }
 
   return (
-    <main className="container mx-auto max-w-6xl p-4">
-      <div className="mb-8">
-        <EnhancedPartsLookup />
-      </div>
-      {/* You can continue with reminders, recent records, etc. */}
+    <main className="max-w-4xl mx-auto p-6">
+      <h1 className="text-2xl font-semibold mb-4">Maintenance</h1>
+      <MaintenanceClient />
     </main>
   )
 }
