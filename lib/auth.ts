@@ -45,6 +45,7 @@ export async function signIn(email: string, password: string) {
   return data
 }
 
+// Alias used by Sign In UI
 export async function signInWithEmail(email: string, password: string) {
   return signIn(email, password)
 }
@@ -81,6 +82,7 @@ export async function createTestUser() {
   })
   if (upErr) throw upErr
 
+  // Attempt sign-in to provide a session when email verification is disabled
   await supabase.auth.signInWithPassword({ email, password }).catch(() => {})
 
   return {

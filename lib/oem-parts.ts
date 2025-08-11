@@ -1,4 +1,4 @@
-import { supabase } from "./supabase"
+import { getSupabaseClient } from "./supabase"
 import { COMPREHENSIVE_BMW_PARTS, type BMWOEMPart as ComprehensivePart } from "./oem-parts-comprehensive"
 
 export interface BMWOEMPart {
@@ -138,6 +138,7 @@ function comprehensiveFallbackFilter(list: ComprehensivePart[], params: SearchOE
 
 export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWOEMPart[]> {
   try {
+    const supabase = getSupabaseClient()
     const limit = params.limit ?? 50
     const offset = params.offset ?? 0
 
@@ -188,31 +189,33 @@ export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWO
 
 export async function getPartByNumber(partNumber: string): Promise<BMWOEMPart | null> {
   try {
-    const { data: viewData, error: viewError } = await supabase
+    const supabase = getSupabaseClient()
+    const { data: row, error } = await supabase
       .from("bmw_parts_search_view")
       .select("*")
       .eq("part_number", partNumber)
-      .limit(1)
       .maybeSingle()
 
-    if (!viewError && viewData) {
+    if (error) throw error
+    if (row) {
       return {
-        id: viewData.id ?? viewData.part_id ?? viewData.part_number,
-        part_number: viewData.part_number,
-        part_name: viewData.part_name,
-        description: viewData.description ?? null,
-        price_msrp: viewData.price_msrp ?? null,
-        is_discontinued: !!viewData.is_discontinued,
-        superseded_by: viewData.superseded_by ?? null,
-        category_name: viewData.category_name ?? viewData.system_category ?? null,
-        category_code: viewData.category_code ?? null,
-        compatible_chassis: viewData.compatible_chassis ?? [],
-        compatible_engines: viewData.compatible_engines ?? [],
-        earliest_year: viewData.earliest_year ?? null,
-        latest_year: viewData.latest_year ?? null,
+        id: row.id ?? row.part_id ?? row.part_number,
+        part_number: row.part_number,
+        part_name: row.part_name,
+        description: row.description ?? null,
+        price_msrp: row.price_msrp ?? null,
+        is_discontinued: !!row.is_discontinued,
+        superseded_by: row.superseded_by ?? null,
+        category_name: row.category_name ?? row.system_category ?? null,
+        category_code: row.category_code ?? null,
+        compatible_chassis: row.compatible_chassis ?? [],
+        compatible_engines: row.compatible_engines ?? [],
+        earliest_year: row.earliest_year ?? null,
+        latest_year: row.latest_year ?? null,
       }
     }
 
+    // Fallback
     const c = COMPREHENSIVE_BMW_PARTS.find((p) => p.part_number === partNumber)
     if (!c) return null
     return {
@@ -255,6 +258,7 @@ export async function getPartByNumber(partNumber: string): Promise<BMWOEMPart | 
 
 export async function getBMWModels(): Promise<BMWModel[]> {
   try {
+    const supabase = getSupabaseClient()
     const { data, error } = await supabase.from("bmw_model_variants").select(
       `
         id,
@@ -267,9 +271,7 @@ export async function getBMWModels(): Promise<BMWModel[]> {
         )
       `,
     )
-
     if (error) throw error
-
     return (
       data?.map((variant: any) => ({
         id: variant.id,
@@ -287,6 +289,7 @@ export async function getBMWModels(): Promise<BMWModel[]> {
 
 export async function getPartCategories(): Promise<BMWPartCategory[]> {
   try {
+    const supabase = getSupabaseClient()
     const { data, error } = await supabase.from("bmw_part_categories").select("*").order("category_name")
     if (error) throw error
     return data || []
@@ -308,6 +311,7 @@ export async function getPartCategories(): Promise<BMWPartCategory[]> {
 
 export async function getBMWChassis(): Promise<BMWChassis[]> {
   try {
+    const supabase = getSupabaseClient()
     const { data, error } = await supabase.from("bmw_chassis").select("*").order("chassis_code")
     if (error) throw error
     return data || []
@@ -318,6 +322,7 @@ export async function getBMWChassis(): Promise<BMWChassis[]> {
 
 export async function getBMWEngines(): Promise<BMWEngine[]> {
   try {
+    const supabase = getSupabaseClient()
     const { data, error } = await supabase.from("bmw_engines").select("*").order("engine_code")
     if (error) throw error
     return data || []
