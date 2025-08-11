@@ -1,308 +1,418 @@
-import { Upload, DollarSign, Camera, FileText, Truck } from "lucide-react"
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { useAuth } from "@/contexts/auth-context"
+import { AuthGuard } from "@/components/auth/auth-guard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Upload, DollarSign, Package, Camera, MapPin, Clock, Shield, Star } from "lucide-react"
+
+const partCategories = [
+  "Engine Components",
+  "Forced Induction",
+  "Transmission",
+  "Suspension & Steering",
+  "Brake System",
+  "Electrical System",
+  "Cooling System",
+  "Exhaust System",
+  "Fuel System",
+  "Interior Parts",
+  "Exterior Parts",
+  "Wheels & Tires",
+  "Performance Parts",
+]
+
+const compatibleModels = [
+  "F30 3 Series Sedan",
+  "F31 3 Series Touring",
+  "F32 4 Series Coupe",
+  "F33 4 Series Convertible",
+  "F36 4 Series Gran Coupe",
+  "F22 2 Series Coupe",
+  "F23 2 Series Convertible",
+  "E90 3 Series",
+  "E92 3 Series",
+  "Other BMW Models",
+]
 
 export default function SellPage() {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-blue-600 rounded"></div>
-              <span className="text-2xl font-bold text-gray-900">BMWParts</span>
-            </Link>
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/browse" className="text-gray-600 hover:text-gray-900">
-                Browse Parts
-              </Link>
-              <Link href="/sell" className="text-blue-600 font-medium">
-                Sell Parts
-              </Link>
-              <Button variant="outline">Sign In</Button>
-            </nav>
+  const { user } = useAuth()
+  const [formData, setFormData] = useState({
+    title: "",
+    partNumber: "",
+    category: "",
+    compatibleModels: [] as string[],
+    condition: "",
+    price: "",
+    description: "",
+    location: "",
+    shipping: false,
+    localPickup: true,
+    images: [] as File[],
+  })
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    // Simulate form submission
+    setTimeout(() => {
+      setLoading(false)
+      setSuccess(true)
+    }, 2000)
+  }
+
+  const handleModelToggle = (model: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      compatibleModels: prev.compatibleModels.includes(model)
+        ? prev.compatibleModels.filter((m) => m !== model)
+        : [...prev.compatibleModels, model],
+    }))
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...Array.from(e.target.files!)],
+      }))
+    }
+  }
+
+  if (success) {
+    return (
+      <AuthGuard>
+        <div className="min-h-screen bg-gray-50">
+          <div className="container mx-auto px-4 py-8">
+            <div className="max-w-2xl mx-auto text-center">
+              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Package className="h-8 w-8 text-green-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Listing Created Successfully!</h1>
+              <p className="text-gray-600 mb-8">
+                Your part listing has been submitted for review. It will be live on the marketplace within 24 hours.
+              </p>
+              <div className="flex gap-4 justify-center">
+                <Button onClick={() => setSuccess(false)}>Create Another Listing</Button>
+                <Button variant="outline" asChild>
+                  <a href="/browse">Browse Marketplace</a>
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
-      </header>
+      </AuthGuard>
+    )
+  }
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+  return (
+    <AuthGuard>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">List Your BMW Parts</h1>
-            <p className="text-lg text-gray-600">
-              Reach thousands of BMW enthusiasts and get the best price for your parts
-            </p>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sell BMW Parts</h1>
+            <p className="text-gray-600">List your BMW parts and accessories on our marketplace</p>
           </div>
 
-          {/* Benefits */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card>
-              <CardHeader className="text-center">
-                <DollarSign className="h-12 w-12 text-green-600 mx-auto mb-2" />
-                <CardTitle>Best Prices</CardTitle>
-                <CardDescription>Competitive marketplace ensures you get fair market value</CardDescription>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="text-center">
-                <Camera className="h-12 w-12 text-blue-600 mx-auto mb-2" />
-                <CardTitle>Easy Listing</CardTitle>
-                <CardDescription>Simple process with photo upload and condition assessment</CardDescription>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="text-center">
-                <Truck className="h-12 w-12 text-purple-600 mx-auto mb-2" />
-                <CardTitle>Flexible Shipping</CardTitle>
-                <CardDescription>Choose your preferred shipping method and pricing</CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
+          {/* Benefits Banner */}
+          <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold text-blue-900 mb-4">Why Sell With Us?</h2>
+              <div className="grid md:grid-cols-4 gap-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-blue-600" />
+                  <span className="text-sm text-blue-800">Secure Transactions</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-blue-600" />
+                  <span className="text-sm text-blue-800">Verified Buyers</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-blue-600" />
+                  <span className="text-sm text-blue-800">Easy Shipping</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                  <span className="text-sm text-blue-800">Competitive Fees</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Listing Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Your Listing</CardTitle>
-              <CardDescription>Fill out the details below to list your BMW part</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Basic Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Basic Information</h3>
-
-                <div className="grid md:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8">
+            {/* Basic Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Basic Information</CardTitle>
+                <CardDescription>Provide essential details about your part</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Part Name *</label>
-                    <Input placeholder="e.g., N55 Charge Pipe" />
+                    <Label htmlFor="title">Listing Title *</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="e.g., BMW F30 335i Turbocharger - Excellent Condition"
+                      required
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Part Number</label>
-                    <Input placeholder="e.g., 11617531423" />
+                    <Label htmlFor="partNumber">BMW Part Number</Label>
+                    <Input
+                      id="partNumber"
+                      value={formData.partNumber}
+                      onChange={(e) => setFormData({ ...formData, partNumber: e.target.value })}
+                      placeholder="e.g., 11657647003"
+                    />
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Category *</label>
-                    <Select>
+                    <Label htmlFor="category">Category *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="engine">Engine</SelectItem>
-                        <SelectItem value="brakes">Brakes</SelectItem>
-                        <SelectItem value="suspension">Suspension</SelectItem>
-                        <SelectItem value="exterior">Exterior</SelectItem>
-                        <SelectItem value="interior">Interior</SelectItem>
-                        <SelectItem value="electrical">Electrical</SelectItem>
+                        {partCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Condition *</label>
-                    <Select>
+                    <Label htmlFor="condition">Condition *</Label>
+                    <Select
+                      value={formData.condition}
+                      onValueChange={(value) => setFormData({ ...formData, condition: value })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select condition" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="new">New</SelectItem>
-                        <SelectItem value="excellent">Used - Excellent</SelectItem>
-                        <SelectItem value="good">Used - Good</SelectItem>
-                        <SelectItem value="fair">Used - Fair</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Type *</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="oem">OEM</SelectItem>
-                        <SelectItem value="aftermarket">Aftermarket</SelectItem>
+                        <SelectItem value="excellent">Excellent</SelectItem>
+                        <SelectItem value="good">Good</SelectItem>
+                        <SelectItem value="fair">Fair</SelectItem>
+                        <SelectItem value="poor">For Parts Only</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
+            {/* Compatible Models */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Compatible BMW Models</CardTitle>
+                <CardDescription>Select all BMW models this part is compatible with</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {compatibleModels.map((model) => (
+                    <div key={model} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={model}
+                        checked={formData.compatibleModels.includes(model)}
+                        onCheckedChange={() => handleModelToggle(model)}
+                      />
+                      <Label htmlFor={model} className="text-sm">
+                        {model}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                {formData.compatibleModels.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {formData.compatibleModels.map((model) => (
+                      <Badge key={model} variant="secondary">
+                        {model}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Description and Images */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Description and Images</CardTitle>
+                <CardDescription>Provide detailed description and photos</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Description *</label>
+                  <Label htmlFor="description">Description *</Label>
                   <Textarea
-                    placeholder="Describe the part condition, any modifications, reason for selling, etc."
-                    rows={4}
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Describe the part condition, installation notes, reason for selling, etc."
+                    rows={6}
+                    required
                   />
-                </div>
-              </div>
-
-              {/* Compatibility */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Compatibility</h3>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">BMW Model *</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="e46">E46 (1998-2006)</SelectItem>
-                        <SelectItem value="e90">E90 (2005-2012)</SelectItem>
-                        <SelectItem value="f30">F30 (2012-2019)</SelectItem>
-                        <SelectItem value="g20">G20 (2019+)</SelectItem>
-                        <SelectItem value="e92">E92 (2007-2013)</SelectItem>
-                        <SelectItem value="f32">F32 (2014-2020)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Year Range</label>
-                    <div className="flex gap-2">
-                      <Input placeholder="From" type="number" />
-                      <Input placeholder="To" type="number" />
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Include installation notes, mileage when removed, and any known issues
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Additional Compatible Models</label>
-                  <Input placeholder="e.g., F32 435i, E92 335i (optional)" />
+                  <Label htmlFor="images">Photos</Label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Upload part photos</p>
+                      <p className="text-xs text-gray-500">Up to 8 photos, max 5MB each</p>
+                    </div>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-4 bg-transparent"
+                      onClick={() => document.getElementById("image-upload")?.click()}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Choose Files
+                    </Button>
+                  </div>
+                  {formData.images.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm text-green-600">
+                        {formData.images.length} image{formData.images.length !== 1 ? "s" : ""} selected
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Photos */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Photos</h3>
-                <p className="text-sm text-gray-600">
-                  Upload clear photos showing the part condition. More photos increase buyer confidence.
-                </p>
-
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Drag and drop photos here, or click to browse</p>
-                  <Button variant="outline">Choose Files</Button>
-                  <p className="text-xs text-gray-500 mt-2">Maximum 10 photos, 5MB each. JPG, PNG supported.</p>
-                </div>
-              </div>
-
-              {/* Pricing */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Pricing & Shipping</h3>
-
-                <div className="grid md:grid-cols-2 gap-4">
+            {/* Pricing and Delivery */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Pricing and Delivery</CardTitle>
+                <CardDescription>Set your price and delivery options</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Price *</label>
+                    <Label htmlFor="price">Price (USD) *</Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                      <Input placeholder="0.00" className="pl-8" type="number" />
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        id="price"
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="0.00"
+                        className="pl-10"
+                        required
+                      />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Shipping Cost</label>
+                    <Label htmlFor="location">Location *</Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                      <Input placeholder="0.00" className="pl-8" type="number" />
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        id="location"
+                        value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        placeholder="City, State"
+                        className="pl-10"
+                        required
+                      />
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2">
-                    <Checkbox />
-                    <span className="text-sm">Offer local pickup</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <Checkbox />
-                    <span className="text-sm">Accept best offers</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <Checkbox />
-                    <span className="text-sm">Part comes with warranty/guarantee</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Contact Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Contact Information</h3>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Your Name *</label>
-                    <Input placeholder="Full name" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Email *</label>
-                    <Input placeholder="email@example.com" type="email" />
+                <div className="space-y-4">
+                  <Label>Delivery Options</Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="localPickup"
+                        checked={formData.localPickup}
+                        onCheckedChange={(checked) => setFormData({ ...formData, localPickup: checked as boolean })}
+                      />
+                      <Label htmlFor="localPickup">Local pickup available</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="shipping"
+                        checked={formData.shipping}
+                        onCheckedChange={(checked) => setFormData({ ...formData, shipping: checked as boolean })}
+                      />
+                      <Label htmlFor="shipping">Willing to ship (buyer pays shipping)</Label>
+                    </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Phone (optional)</label>
-                    <Input placeholder="(555) 123-4567" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Location *</label>
-                    <Input placeholder="City, State" />
-                  </div>
+            {/* Terms and Submit */}
+            <Card>
+              <CardContent className="p-6">
+                <Alert className="mb-6">
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription>
+                    By listing your part, you agree to our marketplace terms and seller policies. All transactions are
+                    protected by our buyer/seller protection program.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="flex gap-4">
+                  <Button type="submit" className="flex-1" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Clock className="mr-2 h-4 w-4 animate-spin" />
+                        Creating Listing...
+                      </>
+                    ) : (
+                      <>
+                        <Package className="mr-2 h-4 w-4" />
+                        Create Listing
+                      </>
+                    )}
+                  </Button>
+                  <Button type="button" variant="outline">
+                    Save Draft
+                  </Button>
                 </div>
-              </div>
-
-              {/* Terms */}
-              <div className="space-y-4">
-                <div className="border-t pt-4">
-                  <label className="flex items-start space-x-2">
-                    <Checkbox className="mt-1" />
-                    <span className="text-sm text-gray-600">
-                      I agree to the Terms of Service and confirm that I have the right to sell this part. I understand
-                      that providing false information may result in account suspension.
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Submit */}
-              <div className="flex gap-4 pt-4">
-                <Button size="lg" className="flex-1">
-                  List Part for Sale
-                </Button>
-                <Button variant="outline" size="lg">
-                  Save as Draft
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Seller Tips */}
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Tips for Successful Selling
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li>• Take clear, well-lit photos from multiple angles</li>
-                <li>• Be honest about the condition and any defects</li>
-                <li>• Include the part number if available</li>
-                <li>• Research similar listings to price competitively</li>
-                <li>• Respond promptly to buyer inquiries</li>
-                <li>• Package items securely for shipping</li>
-              </ul>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </form>
         </div>
       </div>
-    </div>
+    </AuthGuard>
   )
 }

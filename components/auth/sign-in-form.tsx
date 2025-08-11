@@ -3,183 +3,149 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { signIn, createTestUser } from "@/lib/auth"
-import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { Mail, Lock, LogIn, UserPlus, TestTube2, AlertTriangle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useAuth } from "@/contexts/auth-context"
+import { getMissingSupabaseEnv } from "@/lib/supabase"
 
 export function SignInForm() {
+  const { signIn, createTestUser, loading, envReady } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const router = useRouter()
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [testCreds, setTestCreds] = useState<{ email: string; password: string } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError("")
-    setSuccess("")
-
+    setSubmitting(true)
+    setError(null)
     try {
-      console.log("Attempting sign in...")
-      setSuccess("Signing you in...")
-
       await signIn(email, password)
-
-      setSuccess("Sign in successful! Redirecting...")
-
-      setTimeout(() => {
-        router.push("/maintenance")
-        router.refresh()
-      }, 1000)
     } catch (err: any) {
-      console.error("Sign in error:", err)
-      if (err.message?.includes("Invalid login credentials")) {
-        setError("Invalid email or password. Please check your credentials.")
-      } else {
-        setError(err.message || "Failed to sign in. Please try again.")
-      }
+      setError(err?.message ?? "Failed to sign in")
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
-  const handleTestUser = async () => {
-    setLoading(true)
-    setError("")
-    setSuccess("")
-
+  const handleCreateTestUser = async () => {
+    setSubmitting(true)
+    setError(null)
     try {
-      console.log("Creating test user...")
-      setSuccess("Creating test account...")
-
-      await createTestUser()
-
-      setSuccess("Test account created! Redirecting...")
-
-      setTimeout(() => {
-        router.push("/maintenance")
-        router.refresh()
-      }, 1000)
+      const creds = await createTestUser()
+      setTestCreds(creds)
+      // Optionally auto-fill the form with new creds
+      setEmail(creds.email)
+      setPassword(creds.password)
     } catch (err: any) {
-      console.error("Test user error:", err)
-      setError(err.message || "Failed to create test user")
+      setError(err?.message ?? "Failed to create test user")
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
   return (
     <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Welcome Back</CardTitle>
-        <CardDescription>Sign in to your BMWParts account</CardDescription>
+      <CardHeader>
+        <CardTitle className="text-2xl">Sign in</CardTitle>
+        <CardDescription>Access your BMW Parts account</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        {!envReady && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Supabase is not configured</AlertTitle>
+            <AlertDescription>
+              Missing environment variables: {getMissingSupabaseEnv().join(", ")}. Add them to preview auth.
+            </AlertDescription>
+          </Alert>
+        )}
 
-          {success && (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">{success}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Quick Test Options */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle className="h-4 w-4 text-blue-600" />
-              <h4 className="font-semibold text-blue-800">Quick Start</h4>
-            </div>
-            <p className="text-sm text-blue-700 mb-3">Get started immediately - no email verification required!</p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleTestUser}
-                disabled={loading}
-                className="bg-transparent"
-              >
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Create Test Account
-              </Button>
-              <Link href="/auth/sign-up">
-                <Button variant="outline" size="sm" className="bg-transparent" disabled={loading}>
-                  Create New Account
-                </Button>
-              </Link>
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4" aria-disabled={!envReady}>
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">
               Email
             </label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              disabled={loading}
-            />
+            <div className="relative">
+              <Mail className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                className="pl-9"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={!envReady || submitting || loading}
+                autoComplete="email"
+              />
+            </div>
           </div>
-
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium">
               Password
             </label>
             <div className="relative">
+              <Lock className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <Input
                 id="password"
-                type={showPassword ? "text" : "password"}
+                type="password"
+                placeholder="Your password"
+                className="pl-9"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
                 required
-                disabled={loading}
+                disabled={!envReady || submitting || loading}
+                autoComplete="current-password"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={loading}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {loading ? "Signing In..." : "Sign In"}
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Sign-in failed</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button type="submit" className="w-full" disabled={!envReady || submitting || loading}>
+            <LogIn className="h-4 w-4 mr-2" />
+            {submitting ? "Signing in..." : "Sign in"}
           </Button>
 
-          <div className="text-center space-y-2">
-            <div className="text-sm text-gray-600">
-              {"Don't have an account? "}
-              <Link href="/auth/sign-up" className="text-blue-600 hover:underline">
-                Sign up instantly
-              </Link>
-            </div>
+          <div className="flex items-center justify-between">
+            <Link href="/auth/sign-up" className="text-sm text-blue-600 hover:underline inline-flex items-center">
+              <UserPlus className="h-3.5 w-3.5 mr-1" />
+              Create an account
+            </Link>
+            <button
+              type="button"
+              onClick={handleCreateTestUser}
+              className="text-sm text-gray-600 hover:text-gray-900 inline-flex items-center"
+              disabled={!envReady || submitting || loading}
+              aria-label="Create a test user"
+            >
+              <TestTube2 className="h-3.5 w-3.5 mr-1" />
+              Create test user
+            </button>
           </div>
+
+          {testCreds && (
+            <Alert className="mt-4">
+              <AlertTitle>Test user created</AlertTitle>
+              <AlertDescription>
+                Email: {testCreds.email}
+                <br />
+                Password: {testCreds.password}
+              </AlertDescription>
+            </Alert>
+          )}
         </form>
       </CardContent>
     </Card>

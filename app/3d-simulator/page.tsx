@@ -1,211 +1,261 @@
 "use client"
 
-import { MainNav } from "@/components/layout/main-nav"
-import { Button } from "@/components/ui/button"
+import { Suspense, useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Palette, Package, Wrench, Camera, Play, Settings } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2, AlertTriangle, RotateCcw, ZoomIn, ZoomOut, Move3D } from 'lucide-react'
 
-export default function Simulator3DPage() {
+// Dynamically import 3D components to avoid SSR issues
+const Canvas = dynamic(() => import("@react-three/fiber").then(mod => ({ default: mod.Canvas })), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin" /></div>
+})
+
+const OrbitControls = dynamic(() => import("@react-three/drei").then(mod => ({ default: mod.OrbitControls })), { ssr: false })
+const Environment = dynamic(() => import("@react-three/drei").then(mod => ({ default: mod.Environment })), { ssr: false })
+const Text = dynamic(() => import("@react-three/drei").then(mod => ({ default: mod.Text })), { ssr: false })
+
+// Mock BMW parts data
+const bmwParts = [
+  { id: 1, name: "Front Brake Disc", partNumber: "34116794300", price: 89.99, category: "Brakes", position: [-2, 0, 0] },
+  { id: 2, name: "Air Filter", partNumber: "13717532754", price: 24.99, category: "Engine", position: [0, 1, 0] },
+  { id: 3, name: "Headlight Assembly", partNumber: "63117182518", price: 299.99, category: "Lighting", position: [2, 0, 0] },
+  { id: 4, name: "Door Handle", partNumber: "51217202143", price: 45.99, category: "Body", position: [0, -1, 0] },
+  { id: 5, name: "Wheel Hub", partNumber: "31206850156", price: 125.99, category: "Suspension", position: [0, 0, 2] },
+]
+
+function PartMesh({ part, isSelected, onClick }: { part: any, isSelected: boolean, onClick: () => void }) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <MainNav />
+    <group position={part.position} onClick={onClick}>
+      <mesh>
+        <boxGeometry args={[0.5, 0.5, 0.5]} />
+        <meshStandardMaterial color={isSelected ? "#3b82f6" : "#64748b"} />
+      </mesh>
+      <Text
+        position={[0, 0.8, 0]}
+        fontSize={0.1}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+        font="/fonts/Inter-Regular.ttf"
+      >
+        {part.name}
+      </Text>
+    </group>
+  )
+}
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">3D Car Simulator</h1>
-          <p className="text-gray-600">Visualize modifications before you buy</p>
+function Scene3D({ parts, selectedPart, onPartSelect }: { parts: any[], selectedPart: any, onPartSelect: (part: any) => void }) {
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} />
+      <Environment preset="studio" />
+      
+      {parts.map((part) => (
+        <PartMesh
+          key={part.id}
+          part={part}
+          isSelected={selectedPart?.id === part.id}
+          onClick={() => onPartSelect(part)}
+        />
+      ))}
+      
+      <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+    </>
+  )
+}
+
+function Fallback2D({ parts, selectedPart, onPartSelect }: { parts: any[], selectedPart: any, onPartSelect: (part: any) => void }) {
+  return (
+    <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-gray-100" />
+      <div className="relative z-10 grid grid-cols-3 gap-4 p-8">
+        {parts.map((part, index) => (
+          <div
+            key={part.id}
+            className={`w-16 h-16 rounded-lg cursor-pointer transition-all duration-200 flex items-center justify-center text-xs font-medium ${
+              selectedPart?.id === part.id
+                ? "bg-blue-500 text-white shadow-lg scale-110"
+                : "bg-white text-gray-700 hover:bg-gray-50 shadow-md hover:shadow-lg"
+            }`}
+            onClick={() => onPartSelect(part)}
+          >
+            {part.name.split(' ')[0]}
+          </div>
+        ))}
+      </div>
+      <div className="absolute bottom-4 right-4 text-sm text-gray-500">
+        2D Fallback View
+      </div>
+    </div>
+  )
+}
+
+export default function Simulator3D() {
+  const [selectedPart, setSelectedPart] = useState(bmwParts[0])
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
+  const [use3D, setUse3D] = useState(true)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Check WebGL support
+    const checkWebGL = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+        setWebglSupported(!!gl)
+      } catch (e) {
+        setWebglSupported(false)
+      }
+    }
+
+    checkWebGL()
+    
+    // Set loading timeout
+    const timer = setTimeout(() => {
+      setLoading(false)
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handlePartSelect = (part: any) => {
+    setSelectedPart(part)
+  }
+
+  const canUse3D = webglSupported && use3D
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">BMW Parts 3D Simulator</h1>
+        <p className="text-gray-600">Explore BMW parts in an interactive 3D environment</p>
+      </div>
+
+      {webglSupported === false && (
+        <Alert className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            WebGL is not supported in your browser. Using 2D fallback view.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 3D Viewer */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Interactive Parts Viewer</CardTitle>
+                <CardDescription>
+                  {canUse3D ? "Click and drag to rotate, scroll to zoom" : "2D parts overview"}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                {webglSupported && (
+                  <Button
+                    variant={use3D ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUse3D(!use3D)}
+                  >
+                    <Move3D className="h-4 w-4 mr-2" />
+                    {use3D ? "3D" : "2D"}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="h-96 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : canUse3D ? (
+                <Suspense fallback={
+                  <div className="h-96 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                }>
+                  <div className="h-96 w-full">
+                    <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
+                      <Scene3D
+                        parts={bmwParts}
+                        selectedPart={selectedPart}
+                        onPartSelect={handlePartSelect}
+                      />
+                    </Canvas>
+                  </div>
+                </Suspense>
+              ) : (
+                <Fallback2D
+                  parts={bmwParts}
+                  selectedPart={selectedPart}
+                  onPartSelect={handlePartSelect}
+                />
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* 3D Viewer */}
-          <div className="lg:col-span-3">
-            <Card className="h-[600px]">
-              <CardContent className="p-0 h-full">
-                <div className="relative h-full bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Play className="h-12 w-12 text-white" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">3D Simulator Coming Soon</h3>
-                    <p className="text-gray-600 mb-4">Interactive 3D visualization for BMW modifications</p>
-                    <Badge variant="secondary">In Development</Badge>
+        {/* Part Details */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Selected Part</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedPart && (
+                <>
+                  <div>
+                    <h3 className="font-semibold text-lg">{selectedPart.name}</h3>
+                    <p className="text-sm text-gray-600">Part #{selectedPart.partNumber}</p>
                   </div>
-
-                  {/* Placeholder controls */}
-                  <div className="absolute top-4 left-4 flex gap-2">
-                    <Button size="sm" variant="outline" className="bg-white/80">
-                      <Camera className="h-4 w-4 mr-2" />
-                      Screenshot
-                    </Button>
-                    <Button size="sm" variant="outline" className="bg-white/80">
-                      <Settings className="h-4 w-4 mr-2" />
-                      View Settings
-                    </Button>
+                  
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{selectedPart.category}</Badge>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  
+                  <div className="text-2xl font-bold text-green-600">
+                    ${selectedPart.price}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Button className="w-full">Add to Cart</Button>
+                    <Button variant="outline" className="w-full">View Details</Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Modification Panel */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Select Your BMW</CardTitle>
-                <CardDescription>Choose your model to start customizing</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <div className="text-left">
-                      <div className="font-medium">2023 BMW 335i</div>
-                      <div className="text-xs text-gray-500">F30 Series</div>
-                    </div>
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <div className="text-left">
-                      <div className="font-medium">2020 BMW M3</div>
-                      <div className="text-xs text-gray-500">F80 Series</div>
-                    </div>
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <div className="text-left">
-                      <div className="font-medium">Add New Vehicle</div>
-                      <div className="text-xs text-gray-500">From maintenance tracker</div>
-                    </div>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Tabs defaultValue="exterior" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="exterior">Exterior</TabsTrigger>
-                <TabsTrigger value="interior">Interior</TabsTrigger>
-                <TabsTrigger value="performance">Performance</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="exterior" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Palette className="h-4 w-4" />
-                      Paint & Wraps
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="w-full h-8 bg-red-500 rounded cursor-pointer border-2 border-transparent hover:border-gray-400"></div>
-                      <div className="w-full h-8 bg-blue-600 rounded cursor-pointer border-2 border-gray-400"></div>
-                      <div className="w-full h-8 bg-black rounded cursor-pointer border-2 border-transparent hover:border-gray-400"></div>
-                      <div className="w-full h-8 bg-white rounded cursor-pointer border-2 border-gray-300 hover:border-gray-400"></div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full bg-transparent">
-                      Custom Color
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Package className="h-4 w-4" />
-                      Body Kits
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                      M Performance Kit
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                      Vorsteiner Kit
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                      Custom Front Lip
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Wrench className="h-4 w-4" />
-                      Wheels
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                      BBS CH-R 19"
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                      Apex ARC-8 18"
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start bg-transparent">
-                      OEM Style 437
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="interior" className="space-y-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <p className="text-sm text-gray-500 text-center">Interior customization options coming soon</p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="performance" className="space-y-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <p className="text-sm text-gray-500 text-center">Performance visualization coming soon</p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
-
-        {/* Features Preview */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-center mb-8">Coming Soon Features</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Camera className="h-5 w-5 text-blue-600" />
-                  Photo-Realistic Rendering
-                </CardTitle>
-                <CardDescription>
-                  See exactly how modifications will look with ray-traced lighting and materials
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-green-600" />
-                  Real Parts Integration
-                </CardTitle>
-                <CardDescription>
-                  Visualize actual parts from our marketplace with accurate dimensions and fitment
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-purple-600" />
-                  AR Preview
-                </CardTitle>
-                <CardDescription>Use your phone camera to see modifications on your actual vehicle</CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>All Parts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {bmwParts.map((part) => (
+                  <div
+                    key={part.id}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedPart?.id === part.id
+                        ? "bg-blue-50 border border-blue-200"
+                        : "hover:bg-gray-50"
+                    }`}
+                    onClick={() => handlePartSelect(part)}
+                  >
+                    <div className="font-medium text-sm">{part.name}</div>
+                    <div className="text-xs text-gray-500">{part.partNumber}</div>
+                    <div className="text-sm font-semibold text-green-600">${part.price}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

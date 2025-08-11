@@ -1,88 +1,107 @@
 "use client"
 
-import type React from "react"
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import type { User } from "@supabase/supabase-js"
+import { getSupabaseClient, hasSupabaseEnv } from "@/lib/supabase"
+import {
+  createTestUser as createTestUserLib,
+  getCurrentUser as getCurrentUserLib,
+  signIn as signInLib,
+  signOut as signOutLib,
+  signUp as signUpLib,
+  type AuthUser,
+} from "@/lib/auth"
 
-import { createContext, useContext, useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
-import type { AuthUser } from "@/lib/auth"
-import { getCurrentUser } from "@/lib/auth"
-
-interface AuthContextType {
+type AuthContextValue = {
   user: AuthUser | null
   loading: boolean
+  envReady: boolean
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, fullName?: string) => Promise<void>
   signOut: () => Promise<void>
-  refreshUser: () => Promise<void>
+  createTestUser: () => Promise<{ email: string; password: string }>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+function userFromSupabase(user: User | null): AuthUser | null {
+  if (!user) return null
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    created_at: user.created_at,
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
-
-  const refreshUser = async () => {
-    try {
-      console.log("Refreshing user...")
-      const currentUser = await getCurrentUser()
-      console.log("Current user:", currentUser)
-      setUser(currentUser)
-    } catch (error) {
-      console.error("Error fetching user:", error)
-      setUser(null)
-    }
-  }
+  const envReady = hasSupabaseEnv()
 
   useEffect(() => {
-    // Get initial session
-    refreshUser().finally(() => {
-      console.log("Initial auth check complete")
-      setLoading(false)
-    })
+    let unsub: (() => void) | null = null
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state change:", event, session?.user?.id)
+    async function init() {
+      try {
+        if (!envReady) {
+          setUser(null)
+          return
+        }
+        const supabase = getSupabaseClient()
 
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        // Wait a moment for everything to settle
-        setTimeout(async () => {
-          await refreshUser()
-          setLoading(false)
-        }, 1000)
-      } else if (event === "SIGNED_OUT") {
-        setUser(null)
+        // Get current user (with profile if available)
+        const current = await getCurrentUserLib()
+        setUser(current)
+
+        // Subscribe to auth changes
+        const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+          if (session?.user) {
+            const fresh = await getCurrentUserLib()
+            setUser(fresh)
+          } else {
+            setUser(null)
+          }
+        })
+        unsub = () => {
+          sub.subscription.unsubscribe()
+        }
+      } finally {
         setLoading(false)
       }
-    })
+    }
+    init()
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      if (unsub) unsub()
+    }
+  }, [envReady])
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-  }
+  const value = useMemo<AuthContextValue>(() => {
+    return {
+      user,
+      loading,
+      envReady,
+      signIn: async (email: string, password: string) => {
+        await signInLib(email, password)
+      },
+      signUp: async (email: string, password: string, fullName?: string) => {
+        await signUpLib(email, password, fullName)
+      },
+      signOut: async () => {
+        await signOutLib()
+      },
+      createTestUser: async () => {
+        const { email, password } = await createTestUserLib()
+        return { email, password }
+      },
+    }
+  }, [user, loading, envReady])
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        signOut: handleSignOut,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider")
+  return ctx
 }

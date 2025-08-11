@@ -1,188 +1,97 @@
-import { supabase } from "./supabase"
-import type { User } from "@supabase/supabase-js"
+"use client"
 
-export interface AuthUser extends User {
-  profile?: {
-    full_name: string | null
-    phone: string | null
-    location: string | null
-    seller_type: "individual" | "dealer" | "dismantler" | "pick_pull" | null
+import type { User } from "@supabase/supabase-js"
+import { getSupabaseClient } from "./supabase"
+
+export interface AuthUser {
+  id: string
+  email: string
+  full_name?: string
+  avatar_url?: string
+  created_at: string
+}
+
+function mapUser(user: User, profile?: { full_name?: string | null; avatar_url?: string | null }): AuthUser {
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    full_name: profile?.full_name ?? undefined,
+    avatar_url: profile?.avatar_url ?? undefined,
+    created_at: user.created_at,
   }
 }
 
-export async function signUp(
-  email: string,
-  password: string,
-  userData: {
-    fullName: string
-    phone?: string
-    location: string
-    sellerType: "individual" | "dealer" | "dismantler" | "pick_pull"
-  },
-) {
-  try {
-    console.log("Starting sign up process...")
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const supabase = getSupabaseClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+  if (error || !user) return null
 
-    // Sign up with email confirmation disabled
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: undefined, // Disable email confirmation
-        data: {
-          full_name: userData.fullName,
-          phone: userData.phone || null,
-          location: userData.location,
-          seller_type: userData.sellerType,
-        },
-      },
-    })
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, avatar_url")
+    .eq("id", user.id)
+    .maybeSingle()
 
-    if (error) {
-      console.error("Supabase sign up error:", error)
-      throw error
-    }
-
-    console.log("Sign up successful:", data)
-
-    // Wait a moment for the trigger to create the profile
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    return data
-  } catch (error) {
-    console.error("Sign up error:", error)
-    throw error
-  }
+  return mapUser(user, profile ?? undefined)
 }
 
 export async function signIn(email: string, password: string) {
-  console.log("Starting sign in process...")
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data
+}
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+/**
+ * signInWithEmail is a compatibility alias for password-based email sign-in.
+ * It delegates to signIn(email, password).
+ */
+export async function signInWithEmail(email: string, password: string) {
+  return signIn(email, password)
+}
+
+export async function signUp(email: string, password: string, fullName?: string) {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: fullName ? { full_name: fullName } : undefined,
+    },
   })
-
-  if (error) {
-    console.error("Sign in error:", error)
-    throw error
-  }
-
-  console.log("Sign in successful:", data)
-
-  // Wait a moment for session to be established
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
+  if (error) throw error
   return data
 }
 
 export async function signOut() {
+  const supabase = getSupabaseClient()
   const { error } = await supabase.auth.signOut()
   if (error) throw error
 }
 
-export async function getCurrentUser(): Promise<AuthUser | null> {
-  try {
-    // First check if we have a session
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
-
-    if (sessionError) {
-      console.error("Session error:", sessionError)
-      return null
-    }
-
-    if (!session?.user) {
-      console.log("No active session")
-      return null
-    }
-
-    const user = session.user
-
-    // Fetch profile data
-    try {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single()
-
-      if (profileError && profileError.code !== "PGRST116") {
-        console.warn("Profile fetch error:", profileError)
-      }
-
-      return {
-        ...user,
-        profile: profile || undefined,
-      }
-    } catch (profileError) {
-      console.warn("Profile fetch failed:", profileError)
-      return {
-        ...user,
-        profile: undefined,
-      }
-    }
-  } catch (error) {
-    console.error("Get current user error:", error)
-    return null
-  }
-}
-
-export async function updateProfile(
-  userId: string,
-  updates: {
-    full_name?: string
-    phone?: string
-    location?: string
-    seller_type?: "individual" | "dealer" | "dismantler" | "pick_pull"
-  },
-) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-// Create a test user that works immediately
 export async function createTestUser() {
-  try {
-    const testEmail = `test${Date.now()}@bmwparts.com`
-    const testPassword = "testuser123"
+  const supabase = getSupabaseClient()
+  const ts = Date.now()
+  const email = `test.user.${ts}@bmwparts.test`
+  const password = `TestPassword!${ts}`
 
-    console.log("Creating test user with email:", testEmail)
+  const { data: signup, error: upErr } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: "Test User" } },
+  })
+  if (upErr) throw upErr
 
-    const signUpResult = await signUp(testEmail, testPassword, {
-      fullName: "Test User",
-      location: "Test City, TS",
-      sellerType: "individual",
-    })
+  // If email confirmation is enabled, user will need to verify before session exists. [^1]
+  // Attempt sign-in to provide a usable session if confirmation is disabled. [^1]
+  await supabase.auth.signInWithPassword({ email, password }).catch(() => {})
 
-    if (signUpResult.user) {
-      // Wait for profile creation, then sign in
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      try {
-        const signInResult = await signIn(testEmail, testPassword)
-        return signInResult
-      } catch (signInError) {
-        console.warn("Test user sign in failed:", signInError)
-        return signUpResult
-      }
-    }
-
-    return signUpResult
-  } catch (error) {
-    console.error("Error with test user:", error)
-    throw error
+  return {
+    email,
+    password,
+    user: signup.user ?? null,
   }
 }

@@ -1,290 +1,284 @@
-import { Search, Car, Shield, Truck, Users } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import Link from "next/link"
-import { UserMenu } from "@/components/auth/user-menu"
+import { Suspense } from 'react'
+import { Search, Car, Wrench, Users, Star, TrendingUp, Shield, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
+import { TwoSeriesShowcase } from '@/components/oem/two-series-showcase'
+
+const featuredParts = [
+  {
+    id: 1,
+    name: "BMW 2 Series Engine Oil Filter",
+    partNumber: "11427566327",
+    price: 24.99,
+    image: "/placeholder.svg?height=200&width=200",
+    rating: 4.8,
+    reviews: 156,
+    inStock: true,
+    category: "Engine"
+  },
+  {
+    id: 2,
+    name: "BMW 2 Series Brake Pads Front",
+    partNumber: "34116794300",
+    price: 89.99,
+    image: "/placeholder.svg?height=200&width=200",
+    rating: 4.9,
+    reviews: 203,
+    inStock: true,
+    category: "Brakes"
+  },
+  {
+    id: 3,
+    name: "BMW 2 Series Air Filter",
+    partNumber: "13717571355",
+    price: 32.50,
+    image: "/placeholder.svg?height=200&width=200",
+    rating: 4.7,
+    reviews: 89,
+    inStock: false,
+    category: "Engine"
+  },
+  {
+    id: 4,
+    name: "BMW 2 Series Spark Plugs Set",
+    partNumber: "12120037607",
+    price: 67.99,
+    image: "/placeholder.svg?height=200&width=200",
+    rating: 4.8,
+    reviews: 124,
+    inStock: true,
+    category: "Engine"
+  }
+]
+
+const popularCategories = [
+  { name: "Engine Parts", count: 1247, icon: Car },
+  { name: "Brake System", count: 856, icon: Shield },
+  { name: "Suspension", count: 634, icon: Wrench },
+  { name: "Electrical", count: 423, icon: TrendingUp }
+]
+
+const stats = [
+  { label: "Parts Available", value: "50,000+", icon: Car },
+  { label: "Happy Customers", value: "25,000+", icon: Users },
+  { label: "Years Experience", value: "15+", icon: Clock },
+  { label: "Average Rating", value: "4.8/5", icon: Star }
+]
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Car className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold text-gray-900">BMWParts</span>
-            </div>
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/browse" className="text-gray-600 hover:text-gray-900">
-                Browse Parts
-              </Link>
-              <Link href="/maintenance" className="text-gray-600 hover:text-gray-900">
-                Maintenance Tracker
-              </Link>
-              <Link href="/3d-simulator" className="text-gray-600 hover:text-gray-900">
-                3D Simulator
-              </Link>
-              <Link href="/forum" className="text-gray-600 hover:text-gray-900">
-                Forum
-              </Link>
-              <Link href="/sell" className="text-gray-600 hover:text-gray-900">
-                Sell Parts
-              </Link>
-              <UserMenu />
-              <Link href="/auth/sign-in">
-                <Button variant="outline">Sign In</Button>
-              </Link>
-              <Link href="/auth/sign-up">
-                <Button>Get Started</Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">Find the Perfect BMW Parts</h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Compare prices across multiple sellers. Find new OEM, aftermarket, and quality used parts from individuals,
-            dismantling companies, and authorized dealers.
-          </p>
-
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mb-12">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+      <section className="relative bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="relative container mx-auto px-4 py-24">
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6">
+              Premium BMW Parts
+              <span className="block text-blue-300">Marketplace</span>
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-blue-100">
+              Find genuine OEM and high-quality aftermarket parts for your BMW. 
+              Fast shipping, expert support, and unbeatable prices.
+            </p>
+            
+            {/* Search Bar */}
+            <div className="max-w-2xl mx-auto mb-8">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
-                  placeholder="Search by part number, model, or description (e.g., N55 charge pipe)"
-                  className="pl-10 h-12 text-lg"
+                  type="text"
+                  placeholder="Search by part number, vehicle, or description..."
+                  className="pl-12 pr-4 py-4 text-lg bg-white/95 border-0 focus:bg-white"
                 />
+                <Button className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-700">
+                  Search
+                </Button>
               </div>
-              <Button size="lg" className="h-12 px-8">
-                Search Parts
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button size="lg" className="bg-white text-blue-900 hover:bg-blue-50">
+                Browse Parts
+              </Button>
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900">
+                Sell Your Parts
               </Button>
             </div>
           </div>
-
-          {/* Quick Categories */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            <Link
-              href="/browse?category=engine"
-              className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border"
-            >
-              <div className="text-2xl mb-2">🔧</div>
-              <div className="font-semibold">Engine Parts</div>
-            </Link>
-            <Link
-              href="/browse?category=suspension"
-              className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border"
-            >
-              <div className="text-2xl mb-2">🚗</div>
-              <div className="font-semibold">Suspension</div>
-            </Link>
-            <Link
-              href="/browse?category=interior"
-              className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border"
-            >
-              <div className="text-2xl mb-2">🪑</div>
-              <div className="font-semibold">Interior</div>
-            </Link>
-            <Link
-              href="/browse?category=exterior"
-              className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border"
-            >
-              <div className="text-2xl mb-2">✨</div>
-              <div className="font-semibold">Exterior</div>
-            </Link>
-          </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Stats Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose BMWParts?</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card>
-              <CardHeader>
-                <Shield className="h-12 w-12 text-blue-600 mb-4" />
-                <CardTitle>Quality Guaranteed</CardTitle>
-                <CardDescription>Every part comes with detailed condition reports and authentic photos</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Truck className="h-12 w-12 text-blue-600 mb-4" />
-                <CardTitle>Best Prices</CardTitle>
-                <CardDescription>
-                  Compare prices across multiple sellers and official dealers to find the best deal
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Users className="h-12 w-12 text-blue-600 mb-4" />
-                <CardTitle>Trusted Community</CardTitle>
-                <CardDescription>
-                  Connect with verified sellers including individuals, dismantlers, and dealers
-                </CardDescription>
-              </CardHeader>
-            </Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                  <stat.icon className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">{stat.value}</div>
+                <div className="text-gray-600">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Popular Parts Section */}
+      {/* Featured Parts */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Popular BMW Parts</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <img
-                  src="/placeholder.svg?height=200&width=300"
-                  alt="N55 Charge Pipe"
-                  className="w-full h-48 object-cover rounded-lg mb-4"
-                />
-                <CardTitle>N55 Aluminum Charge Pipe</CardTitle>
-                <CardDescription>Upgrade from plastic OEM part. Prevents common failure point.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-green-600">$89 - $299</span>
-                  <Button variant="outline">View Options</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <img
-                  src="/placeholder.svg?height=200&width=300"
-                  alt="BMW Brake Pads"
-                  className="w-full h-48 object-cover rounded-lg mb-4"
-                />
-                <CardTitle>Brake Pads (Front)</CardTitle>
-                <CardDescription>OEM and performance aftermarket options available</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-green-600">$45 - $180</span>
-                  <Button variant="outline">View Options</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <img
-                  src="/placeholder.svg?height=200&width=300"
-                  alt="BMW Oil Filter"
-                  className="w-full h-48 object-cover rounded-lg mb-4"
-                />
-                <CardTitle>Oil Filter Kit</CardTitle>
-                <CardDescription>Complete oil change kit with filter and drain plug</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-green-600">$12 - $35</span>
-                  <Button variant="outline">View Options</Button>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Featured Parts
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Hand-picked premium parts with excellent reviews and fast shipping
+            </p>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredParts.map((part) => (
+              <Card key={part.id} className="group hover:shadow-lg transition-shadow">
+                <CardHeader className="p-0">
+                  <div className="relative overflow-hidden rounded-t-lg">
+                    <img
+                      src={part.image || "/placeholder.svg"}
+                      alt={part.name}
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <Badge 
+                      className={`absolute top-2 right-2 ${part.inStock ? 'bg-green-500' : 'bg-red-500'}`}
+                    >
+                      {part.inStock ? 'In Stock' : 'Out of Stock'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="mb-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {part.category}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-lg mb-2 line-clamp-2">
+                    {part.name}
+                  </CardTitle>
+                  <CardDescription className="text-sm text-gray-500 mb-3">
+                    Part #: {part.partNumber}
+                  </CardDescription>
+                  
+                  <div className="flex items-center mb-3">
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < Math.floor(part.rating)
+                              ? 'text-yellow-400 fill-current'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-600 ml-2">
+                      {part.rating} ({part.reviews})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold text-blue-600">
+                      ${part.price}
+                    </span>
+                    <Button size="sm" disabled={!part.inStock}>
+                      {part.inStock ? 'Add to Cart' : 'Notify Me'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link href="/browse">
+              <Button size="lg" variant="outline">
+                View All Parts
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Popular Categories */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Popular Categories
+            </h2>
+            <p className="text-xl text-gray-600">
+              Browse parts by category to find exactly what you need
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {popularCategories.map((category, index) => (
+              <Link key={index} href={`/browse?category=${category.name.toLowerCase().replace(' ', '-')}`}>
+                <Card className="group hover:shadow-lg transition-all cursor-pointer border-2 hover:border-blue-300">
+                  <CardContent className="p-6 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4 group-hover:bg-blue-200 transition-colors">
+                      <category.icon className="h-8 w-8 text-blue-600" />
+                    </div>
+                    <CardTitle className="text-xl mb-2 group-hover:text-blue-600 transition-colors">
+                      {category.name}
+                    </CardTitle>
+                    <CardDescription className="text-gray-600">
+                      {category.count.toLocaleString()} parts available
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* BMW 2 Series Showcase */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <Suspense fallback={<div className="text-center">Loading BMW 2 Series parts...</div>}>
+            <TwoSeriesShowcase />
+          </Suspense>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-blue-600 text-white">
+      <section className="py-16 bg-blue-900 text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Find Your Parts?</h2>
-          <p className="text-xl mb-8 opacity-90">
-            Join thousands of BMW enthusiasts finding quality parts at the best prices
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Ready to Find Your Parts?
+          </h2>
+          <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
+            Join thousands of BMW enthusiasts who trust us for their parts needs. 
+            Fast shipping, expert support, and quality guaranteed.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary">
-              Browse All Parts
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="text-white border-white hover:bg-white hover:text-blue-600 bg-transparent"
-            >
-              Start Selling
-            </Button>
+            <Link href="/browse">
+              <Button size="lg" className="bg-white text-blue-900 hover:bg-blue-50">
+                Start Shopping
+              </Button>
+            </Link>
+            <Link href="/sell">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900">
+                Sell Your Parts
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Car className="h-6 w-6" />
-                <span className="text-xl font-bold">BMWParts</span>
-              </div>
-              <p className="text-gray-400">The trusted marketplace for BMW parts and accessories.</p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Shop</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/browse">Browse Parts</Link>
-                </li>
-                <li>
-                  <Link href="/new">New Parts</Link>
-                </li>
-                <li>
-                  <Link href="/used">Used Parts</Link>
-                </li>
-                <li>
-                  <Link href="/oem">OEM Parts</Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Sell</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/sell">List Your Parts</Link>
-                </li>
-                <li>
-                  <Link href="/seller-guide">Seller Guide</Link>
-                </li>
-                <li>
-                  <Link href="/pricing">Pricing</Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/help">Help Center</Link>
-                </li>
-                <li>
-                  <Link href="/contact">Contact Us</Link>
-                </li>
-                <li>
-                  <Link href="/returns">Returns</Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 BMWParts. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

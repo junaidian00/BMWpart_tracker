@@ -1,0 +1,139 @@
+// components/layout/main-nav.tsx
+export function MainNav() {
+  return (
+    <nav className="bg-white shadow-sm border-b sticky top-0 z-50" role="navigation" aria-label="Primary">
+      {/* rest of code here */}
+    </nav>
+  );
+}
+
+// app/maintenance/page.tsx
+import { Suspense } from "react";
+import { Metadata } from "next";
+import { siteConfig } from "@/config/site";
+import { DashboardShell } from "@/components/shells/dashboard";
+import { MaintenanceForm } from "@/components/forms/maintenance-form";
+
+export const metadata: Metadata = {
+  title: "Maintenance",
+  description: "Update your maintenance records here.",
+};
+
+export default function MaintenancePage() {
+  return (
+    <DashboardShell>
+      <Suspense>
+        {/* rest of code here */}
+      </Suspense>
+    </DashboardShell>
+  );
+}
+
+// app/forum/page.tsx
+import { Suspense } from "react";
+import { Metadata } from "next";
+import { siteConfig } from "@/config/site";
+import { ForumShell } from "@/components/shells/forum";
+import { ForumThreadList } from "@/components/lists/forum-thread-list";
+
+export const metadata: Metadata = {
+  title: "Forum",
+  description: "Discuss and share ideas with other users.",
+};
+
+export default function ForumPage() {
+  return (
+    <ForumShell>
+      {/* rest of code here */}
+    </ForumShell>
+  );
+}
+
+// app/dashboard/page.tsx
+import { Suspense } from "react";
+import { Metadata } from "next";
+import { siteConfig } from "@/config/site";
+import { DashboardShell } from "@/components/shells/dashboard";
+import { DashboardStats } from "@/components/stats/dashboard-stats";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "View your account statistics and manage your settings.",
+};
+
+export default function DashboardPage() {
+  return (
+    <DashboardShell>
+      <Suspense>
+        {/* rest of code here */}
+      </Suspense>
+    </DashboardShell>
+  );
+}
+
+// app/sell/page.tsx
+import { Suspense } from "react";
+import { Metadata } from "next";
+import { siteConfig } from "@/config/site";
+import { SellShell } from "@/components/shells/sell";
+import { SellForm } from "@/components/forms/sell-form";
+import { SuccessScreen } from "@/components/screens/success-screen";
+
+export const metadata: Metadata = {
+  title: "Sell",
+  description: "List your products for sale.",
+};
+
+export default function SellPage() {
+  return (
+    <SellShell>
+      <Suspense>
+        {/* rest of code here */}
+      </Suspense>
+    </SellShell>
+  );
+}
+
+// app/oem-catalog/page.tsx
+import { Suspense } from "react";
+import { Metadata } from "next";
+import { siteConfig } from "@/config/site";
+import { OemCatalogShell } from "@/components/shells/oem-catalog";
+import { OemCatalogList } from "@/components/lists/oem-catalog-list";
+
+export const metadata: Metadata = {
+  title: "OEM Catalog",
+  description: "Browse and purchase OEM parts.",
+};
+
+export default function OemCatalogPage() {
+  return (
+    <OemCatalogShell>
+      <Suspense>
+        {/* rest of code here */}
+      </Suspense>
+    </OemCatalogShell>
+  );
+}
+
+// app/3d-simulator/page.tsx
+import { Suspense } from "react";
+import { Metadata } from "next";
+import { siteConfig } from "@/config/site";
+import { SimulatorShell } from "@/components/shells/simulator";
+import { SimulatorCanvas } from "@/components/canvas/simulator-canvas";
+
+export const metadata: Metadata = {
+  title: "3D Simulator",
+  description: "Visualize and simulate your designs in 3D.",
+};
+
+export default function SimulatorPage() {
+  return (
+    <SimulatorShell>
+      <Suspense>
+        {/* rest of code here */}
+      </Suspense>
+    </SimulatorShell>
+  );
+}
