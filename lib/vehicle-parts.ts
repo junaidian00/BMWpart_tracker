@@ -187,3 +187,5 @@ export async function createMaintenanceShoppingList(vehicle: Vehicle, maintenanc
 
   return parts
 }
+
+export type { BMWOEMPart } from "./oem-parts"

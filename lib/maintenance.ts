@@ -387,3 +387,5 @@ export async function addMaintenanceReminder(
     throw error
   }
 }
+
+export type { Vehicle, MaintenanceRecord, MaintenanceReminder } from "./supabase"
