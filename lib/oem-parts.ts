@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "./supabase"
-import { COMPREHENSIVE_BMW_PARTS, type BMWOEMPart as ComprehensivePart } from "./oem-parts-comprehensive"
+import { REALOEM_PARTS_DATABASE, type RealOEMPart } from "./realoem-parts-database"
 
 export interface BMWOEMPart {
   id: string
@@ -72,68 +72,77 @@ export interface SearchOEMPartsParams {
 
 export type SearchFilters = SearchOEMPartsParams
 
-function comprehensiveFallbackFilter(list: ComprehensivePart[], params: SearchOEMPartsParams): BMWOEMPart[] {
+function convertRealOEMToBMWOEM(realOEMPart: RealOEMPart): BMWOEMPart {
+  return {
+    id: realOEMPart.id,
+    part_number: realOEMPart.partNumber,
+    part_name: realOEMPart.name,
+    description: realOEMPart.description,
+    price_msrp: realOEMPart.price,
+    is_discontinued: realOEMPart.availability === "Discontinued",
+    superseded_by: null,
+    category_name: realOEMPart.category,
+    category_code: realOEMPart.category.toUpperCase().replace(/\s+/g, "_"),
+    compatible_chassis: realOEMPart.compatibility.chassisCodes,
+    compatible_engines: realOEMPart.compatibility.engineCodes,
+    compatible_body_types: realOEMPart.compatibility.bodyTypes || [],
+    earliest_year: Math.min(...realOEMPart.compatibility.years),
+    latest_year: Math.max(...realOEMPart.compatibility.years),
+  }
+}
+
+function comprehensiveFallbackFilter(list: RealOEMPart[], params: SearchOEMPartsParams): BMWOEMPart[] {
   let parts = [...list]
 
   if (params.query) {
     const q = params.query.toLowerCase()
     parts = parts.filter(
       (p) =>
-        p.part_name.toLowerCase().includes(q) ||
-        p.part_number.toLowerCase().includes(q) ||
-        (p.description || "").toLowerCase().includes(q) ||
-        (p.category_name || "").toLowerCase().includes(q),
+        p.name.toLowerCase().includes(q) ||
+        p.partNumber.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q),
     )
   }
 
   if (params.partNumber) {
     const pn = params.partNumber.toLowerCase()
-    parts = parts.filter((p) => p.part_number.toLowerCase().includes(pn))
+    parts = parts.filter((p) => p.partNumber.toLowerCase().includes(pn))
   }
 
   if (params.categoryCode && params.categoryCode !== "all") {
-    parts = parts.filter((p) => p.category_code === params.categoryCode)
+    const categoryName = params.categoryCode.toLowerCase().replace(/_/g, " ")
+    parts = parts.filter((p) => p.category.toLowerCase() === categoryName)
   }
 
   const series = params.seriesCode ?? params.chassisCode
   if (series) {
-    parts = parts.filter((p) => (p.compatible_chassis || []).includes(series))
+    parts = parts.filter(
+      (p) => p.compatibility.chassisCodes.includes("ALL") || p.compatibility.chassisCodes.includes(series),
+    )
   }
 
   if (params.engineCode) {
-    parts = parts.filter((p) => (p.compatible_engines || []).includes(params.engineCode!))
+    parts = parts.filter(
+      (p) => p.compatibility.engineCodes.includes("ALL") || p.compatibility.engineCodes.includes(params.engineCode!),
+    )
   }
 
   if (params.bodyType) {
     const bt = (params.bodyType || "").toLowerCase()
-    parts = parts.filter((p: any) => {
-      const arr: string[] | undefined = p.compatible_body_types
+    parts = parts.filter((p) => {
+      const arr = p.compatibility.bodyTypes
       if (!arr || arr.length === 0) return true
       return arr.map((x) => x.toLowerCase()).includes(bt)
     })
   }
 
   if (!params.includeDiscontinued) {
-    parts = parts.filter((p) => !p.is_discontinued)
+    parts = parts.filter((p) => p.availability !== "Discontinued")
   }
 
   const limited = params.limit ? parts.slice(0, params.limit) : parts
-  return limited.map((p) => ({
-    id: String(p.id),
-    part_number: p.part_number,
-    part_name: p.part_name,
-    description: p.description ?? null,
-    price_msrp: p.price_msrp ?? null,
-    is_discontinued: !!p.is_discontinued,
-    superseded_by: (p as any).superseded_by ?? null,
-    category_name: p.category_name ?? null,
-    category_code: p.category_code ?? null,
-    compatible_chassis: p.compatible_chassis ?? [],
-    compatible_engines: p.compatible_engines ?? [],
-    compatible_body_types: (p as any).compatible_body_types ?? [],
-    earliest_year: p.earliest_year ?? null,
-    latest_year: p.latest_year ?? null,
-  }))
+  return limited.map(convertRealOEMToBMWOEM)
 }
 
 export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWOEMPart[]> {
@@ -183,7 +192,7 @@ export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWO
       latest_year: row.latest_year ?? null,
     }))
   } catch {
-    return comprehensiveFallbackFilter(COMPREHENSIVE_BMW_PARTS, params)
+    return comprehensiveFallbackFilter(REALOEM_PARTS_DATABASE, params)
   }
 }
 
@@ -215,44 +224,13 @@ export async function getPartByNumber(partNumber: string): Promise<BMWOEMPart | 
       }
     }
 
-    // Fallback
-    const c = COMPREHENSIVE_BMW_PARTS.find((p) => p.part_number === partNumber)
-    if (!c) return null
-    return {
-      id: String(c.id),
-      part_number: c.part_number,
-      part_name: c.part_name,
-      description: c.description ?? null,
-      price_msrp: c.price_msrp ?? null,
-      is_discontinued: !!c.is_discontinued,
-      superseded_by: (c as any).superseded_by ?? null,
-      category_name: c.category_name ?? null,
-      category_code: c.category_code ?? null,
-      compatible_chassis: c.compatible_chassis ?? [],
-      compatible_engines: c.compatible_engines ?? [],
-      compatible_body_types: (c as any).compatible_body_types ?? [],
-      earliest_year: c.earliest_year ?? null,
-      latest_year: c.latest_year ?? null,
-    }
+    const realOEMPart = REALOEM_PARTS_DATABASE.find((p) => p.partNumber === partNumber)
+    if (!realOEMPart) return null
+    return convertRealOEMToBMWOEM(realOEMPart)
   } catch {
-    const c = COMPREHENSIVE_BMW_PARTS.find((p) => p.part_number === partNumber)
-    if (!c) return null
-    return {
-      id: String(c.id),
-      part_number: c.part_number,
-      part_name: c.part_name,
-      description: c.description ?? null,
-      price_msrp: c.price_msrp ?? null,
-      is_discontinued: !!c.is_discontinued,
-      superseded_by: (c as any).superseded_by ?? null,
-      category_name: c.category_name ?? null,
-      category_code: c.category_code ?? null,
-      compatible_chassis: c.compatible_chassis ?? [],
-      compatible_engines: c.compatible_engines ?? [],
-      compatible_body_types: (c as any).compatible_body_types ?? [],
-      earliest_year: c.earliest_year ?? null,
-      latest_year: c.latest_year ?? null,
-    }
+    const realOEMPart = REALOEM_PARTS_DATABASE.find((p) => p.partNumber === partNumber)
+    if (!realOEMPart) return null
+    return convertRealOEMToBMWOEM(realOEMPart)
   }
 }
 
