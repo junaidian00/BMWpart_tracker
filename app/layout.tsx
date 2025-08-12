@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { ClientProviders } from "@/components/providers/client-providers"
 import { MainNav } from "@/components/layout/main-nav"
+import { CartDrawer } from "@/components/cart/cart-drawer"
 
 export const metadata: Metadata = {
   title: "BMW Parts Marketplace - F22, F23, F30, F32, F33, F36 Specialists",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Ensure every component using useAuth is inside the provider */}
           <MainNav />
           <main className="min-h-screen pt-16">{children}</main>
+          <CartDrawer />
         </ClientProviders>
       </body>
     </html>

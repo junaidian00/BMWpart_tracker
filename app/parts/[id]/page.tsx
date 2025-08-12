@@ -1,20 +1,22 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
-import { ArrowLeft, Car, Wrench, Calendar, Package, DollarSign, ShoppingCart } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { getPartByNumber, type BMWOEMPart } from '@/lib/oem-parts'
-import Link from 'next/link'
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import { ArrowLeft, Car, Wrench, Calendar, Package, DollarSign, ShoppingCart } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { getPartByNumber, type BMWOEMPart } from "@/lib/oem-parts"
+import { useCart } from "@/contexts/cart-context"
+import Link from "next/link"
 
 export default function PartDetailPage() {
   const params = useParams()
   const partNumber = params.id as string
   const [part, setPart] = useState<BMWOEMPart | null>(null)
   const [loading, setLoading] = useState(true)
+  const { addItem } = useCart()
 
   useEffect(() => {
     async function loadPart() {
@@ -22,7 +24,7 @@ export default function PartDetailPage() {
         const partData = await getPartByNumber(partNumber)
         setPart(partData)
       } catch (error) {
-        console.error('Error loading part:', error)
+        console.error("Error loading part:", error)
       } finally {
         setLoading(false)
       }
@@ -32,6 +34,19 @@ export default function PartDetailPage() {
       loadPart()
     }
   }, [partNumber])
+
+  const handleAddToCart = () => {
+    if (part) {
+      addItem({
+        id: part.part_number,
+        partNumber: part.part_number,
+        partName: part.part_name,
+        price: part.price_msrp || 0,
+        category: part.category_name || undefined,
+        compatibility: [...(part.compatible_chassis || []), ...(part.compatible_engines || [])],
+      })
+    }
+  }
 
   if (loading) {
     return (
@@ -61,9 +76,7 @@ export default function PartDetailPage() {
           <div className="text-center py-12">
             <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Part not found</h3>
-            <p className="text-gray-600 mb-4">
-              The part number {partNumber} could not be found in our catalog.
-            </p>
+            <p className="text-gray-600 mb-4">The part number {partNumber} could not be found in our catalog.</p>
             <Button asChild>
               <Link href="/browse">Browse All Parts</Link>
             </Button>
@@ -90,9 +103,7 @@ export default function PartDetailPage() {
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-2xl mb-2">{part.part_name}</CardTitle>
-                <CardDescription className="text-lg">
-                  Part Number: {part.part_number}
-                </CardDescription>
+                <CardDescription className="text-lg">Part Number: {part.part_number}</CardDescription>
               </div>
               {part.category_name && (
                 <Badge variant="secondary" className="text-sm">
@@ -153,7 +164,7 @@ export default function PartDetailPage() {
                         <span className="font-medium">Production Years:</span>
                       </div>
                       <Badge variant="outline">
-                        {part.earliest_year} - {part.latest_year === 2024 ? 'Present' : part.latest_year}
+                        {part.earliest_year} - {part.latest_year === 2024 ? "Present" : part.latest_year}
                       </Badge>
                     </div>
                   )}
@@ -167,9 +178,7 @@ export default function PartDetailPage() {
                   {part.price_msrp ? (
                     <div className="flex items-center">
                       <DollarSign className="h-5 w-5 text-green-600 mr-2" />
-                      <span className="text-3xl font-bold text-green-600">
-                        ${part.price_msrp.toFixed(2)}
-                      </span>
+                      <span className="text-3xl font-bold text-green-600">${part.price_msrp.toFixed(2)}</span>
                       <span className="text-sm text-gray-500 ml-2">MSRP</span>
                     </div>
                   ) : (
@@ -180,11 +189,11 @@ export default function PartDetailPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Button className="w-full" size="lg">
+                    <Button className="w-full" size="lg" onClick={handleAddToCart} disabled={!part.price_msrp}>
                       <ShoppingCart className="h-5 w-5 mr-2" />
                       Add to Cart
                     </Button>
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full bg-transparent">
                       Request Quote
                     </Button>
                   </div>
@@ -212,11 +221,11 @@ export default function PartDetailPage() {
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Category:</span>
-                  <p>{part.category_name || 'Not specified'}</p>
+                  <p>{part.category_name || "Not specified"}</p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Status:</span>
-                  <p>{part.is_discontinued ? 'Discontinued' : 'Available'}</p>
+                  <p>{part.is_discontinued ? "Discontinued" : "Available"}</p>
                 </div>
               </div>
             </div>
@@ -227,9 +236,7 @@ export default function PartDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Related Parts</CardTitle>
-            <CardDescription>
-              Other parts that might be compatible with your vehicle
-            </CardDescription>
+            <CardDescription>Other parts that might be compatible with your vehicle</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-8 text-gray-500">

@@ -9,11 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useCart } from "@/contexts/cart-context"
+import Link from "next/link"
+import Image from "next/image"
+
 import {
   Search,
   Car,
   Wrench,
-  Plus,
   ShoppingCart,
   Grid,
   List,
@@ -23,17 +26,12 @@ import {
   Download,
   Eye,
   AlertTriangle,
-  CheckCircle,
   Clock,
-  DollarSign,
   Package,
   Settings,
-  Zap,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import type { Vehicle } from "@/lib/maintenance"
-import Link from "next/link"
-import Image from "next/image"
 
 interface RealOEMPart {
   id: string
@@ -83,6 +81,7 @@ export function RealOEMPartsBrowser({ vehicles }: RealOEMPartsBrowserProps) {
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const { addItem } = useCart()
 
   useEffect(() => {
     loadInitialData()
@@ -306,6 +305,71 @@ export function RealOEMPartsBrowser({ vehicles }: RealOEMPartsBrowserProps) {
   }
 
   const totalPages = Math.ceil(totalResults / resultsPerPage)
+
+  const handleAddToCart = (part: RealOEMPart) => {
+    addItem({
+      id: part.part_number,
+      partNumber: part.part_number,
+      partName: part.part_name,
+      price: part.price_msrp || 0,
+      category: part.category_name,
+      compatibility: [...part.compatible_models, ...part.compatible_engines],
+    })
+  }
+
+  const PartCard = ({ part }: { part: RealOEMPart }) => (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg line-clamp-2">{part.part_name}</CardTitle>
+          <Badge variant={part.is_discontinued ? "destructive" : "secondary"}>
+            {part.is_discontinued ? "Discontinued" : part.category_name}
+          </Badge>
+        </div>
+        <CardDescription className="font-mono text-sm">{part.part_number}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {part.description && <p className="text-sm text-gray-600 line-clamp-2">{part.description}</p>}
+
+        <div className="flex flex-wrap gap-1">
+          {part.compatible_models.slice(0, 3).map((model) => (
+            <Badge key={model} variant="outline" className="text-xs">
+              {model}
+            </Badge>
+          ))}
+          {part.compatible_models.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{part.compatible_models.length - 3} more
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            {part.price_msrp ? (
+              <span className="text-lg font-bold text-green-600">${part.price_msrp.toFixed(2)}</span>
+            ) : (
+              <span className="text-sm text-gray-500">Price on request</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {part.price_msrp && !part.is_discontinued && (
+              <Button size="sm" onClick={() => handleAddToCart(part)}>
+                <ShoppingCart className="h-4 w-4 mr-1" />
+                Add to Cart
+              </Button>
+            )}
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/parts/${part.part_number}`}>
+                <Eye className="h-4 w-4 mr-1" />
+                View
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 
   return (
     <div className="space-y-6">
@@ -630,179 +694,92 @@ export function RealOEMPartsBrowser({ vehicles }: RealOEMPartsBrowserProps) {
             </Card>
           )}
 
-          {totalResults > 0 && (
-            <div className="space-y-4">
-              {/* Results Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-semibold">{totalResults.toLocaleString()} Parts Found</h3>
-                  {selectedVehicle && (
-                    <Badge variant="outline" className="bg-blue-50">
-                      <Car className="mr-1 h-3 w-3" />
-                      Compatible with your {selectedVehicle.year} {selectedVehicle.model}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className={viewMode === "list" ? "bg-gray-100" : ""}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className={viewMode === "grid" ? "bg-gray-100" : ""}
-                  >
-                    <Grid className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Results Grid/List */}
-              <div className={viewMode === "grid" ? "grid md:grid-cols-2 gap-4" : "space-y-4"}>
-                {parts.map((part) => (
-                  <Card key={part.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-gray-900">{part.part_name}</h4>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleFavorite(part.part_number)}
-                              className="p-1 h-auto"
-                            >
-                              {favorites.includes(part.part_number) ? (
-                                <CheckCircle className="h-4 w-4 text-yellow-500" />
-                              ) : (
-                                <Plus className="h-4 w-4 text-gray-400" />
-                              )}
-                            </Button>
-                          </div>
-                          <p className="text-blue-600 font-mono text-sm mb-2">#{part.part_number}</p>
-                          {part.description && <p className="text-gray-600 text-sm mb-2">{part.description}</p>}
-                        </div>
-                        <div className="text-right">
-                          {part.price_msrp && (
-                            <div className="text-lg font-bold text-green-600 flex items-center">
-                              <DollarSign className="h-4 w-4" />
-                              {part.price_msrp.toFixed(2)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <Badge variant="secondary">{part.category_name}</Badge>
-                        {part.is_discontinued && (
-                          <Badge variant="destructive">
-                            <AlertTriangle className="mr-1 h-3 w-3" />
-                            Discontinued
-                          </Badge>
-                        )}
-                        {part.superseded_by && (
-                          <Badge variant="outline">
-                            <Zap className="mr-1 h-3 w-3" />
-                            Superseded
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="text-xs">
-                          {part.earliest_year}-{part.latest_year}
-                        </Badge>
-                      </div>
-
-                      {/* Compatibility Info */}
-                      <div className="text-xs text-gray-600 mb-3">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Car className="h-3 w-3" />
-                          <span>Compatible: {part.compatible_models.slice(0, 3).join(", ")}</span>
-                          {part.compatible_models.length > 3 && <span>+{part.compatible_models.length - 3} more</span>}
-                        </div>
-                        {part.compatible_engines.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Settings className="h-3 w-3" />
-                            <span>Engines: {part.compatible_engines.slice(0, 3).join(", ")}</span>
-                            {part.compatible_engines.length > 3 && (
-                              <span>+{part.compatible_engines.length - 3} more</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Link href={`/oem-catalog/part/${part.part_number}`}>
-                          <Button size="sm" variant="outline">
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </Button>
-                        </Link>
-                        <Link href={`/browse?part_number=${part.part_number}`}>
-                          <Button size="sm" variant="outline">
-                            <ShoppingCart className="mr-2 h-4 w-4" />
-                            Find Sellers
-                          </Button>
-                        </Link>
-                        <Button size="sm">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add to List
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
+          {parts.length > 0 && (
+            <Card>
+              <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {(currentPage - 1) * resultsPerPage + 1} to{" "}
-                    {Math.min(currentPage * resultsPerPage, totalResults)} of {totalResults.toLocaleString()} results
-                  </div>
-                  <div className="flex gap-2">
+                  <CardTitle>Search Results ({totalResults.toLocaleString()} parts found)</CardTitle>
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                    >
+                      {viewMode === "grid" ? <List className="h-4 w-4" /> : <Grid className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {parts.map((part) => (
+                      <PartCard key={part.id} part={part} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {parts.map((part) => (
+                      <div
+                        key={part.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium">{part.part_name}</div>
+                          <div className="text-sm text-gray-600 font-mono">{part.part_number}</div>
+                          <div className="text-xs text-gray-500">{part.category_name}</div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            {part.price_msrp ? (
+                              <div className="font-semibold text-green-600">${part.price_msrp.toFixed(2)}</div>
+                            ) : (
+                              <div className="text-sm text-gray-500">Price on request</div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            {part.price_msrp && !part.is_discontinued && (
+                              <Button size="sm" onClick={() => handleAddToCart(part)}>
+                                <ShoppingCart className="h-4 w-4 mr-1" />
+                                Add to Cart
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/parts/${part.part_number}`}>View</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === 1}
                       onClick={() => searchParts(currentPage - 1)}
-                      disabled={currentPage === 1 || loading}
                     >
                       Previous
                     </Button>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const page = Math.max(1, currentPage - 2) + i
-                        if (page > totalPages) return null
-                        return (
-                          <Button
-                            key={page}
-                            variant={page === currentPage ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => searchParts(page)}
-                            disabled={loading}
-                          >
-                            {page}
-                          </Button>
-                        )
-                      })}
-                    </div>
+                    <span className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={currentPage === totalPages}
                       onClick={() => searchParts(currentPage + 1)}
-                      disabled={currentPage === totalPages || loading}
                     >
                       Next
                     </Button>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

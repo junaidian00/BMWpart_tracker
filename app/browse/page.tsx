@@ -8,18 +8,19 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { HierarchicalCarSelector, type CarSelection } from "@/components/maintenance/hierarchical-car-selector"
 import { searchOEMParts, type BMWOEMPart } from "@/lib/oem-parts"
-import { Loader2, Search } from "lucide-react"
+import { useCart } from "@/contexts/cart-context"
+import { Loader2, Search, ShoppingCart } from "lucide-react"
 
 export default function BrowsePage() {
   const [selection, setSelection] = useState<CarSelection>({})
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<BMWOEMPart[]>([])
+  const { addItem } = useCart()
 
   const filters = useMemo(
     () => ({
       query: query || undefined,
-      // searchOEMParts supports seriesCode or chassisCode; we’ll pass chassis code
       chassisCode: selection.chassisCode || undefined,
       engineCode: selection.engineCode || undefined,
       includeDiscontinued: false,
@@ -36,6 +37,17 @@ export default function BrowsePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleAddToCart = (part: BMWOEMPart) => {
+    addItem({
+      id: part.part_number,
+      partNumber: part.part_number,
+      partName: part.part_name,
+      price: part.price_msrp || 0,
+      category: part.category_name || undefined,
+      compatibility: [...(part.compatible_chassis || []), ...(part.compatible_engines || [])],
+    })
   }
 
   // Auto-search when vehicle selection completed and there is at least a chassis
@@ -96,14 +108,22 @@ export default function BrowsePage() {
           results.map((p) => (
             <Card key={p.id}>
               <CardContent className="p-4 flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <div className="font-medium">{p.part_name}</div>
                   <div className="text-sm text-gray-600">{p.part_number}</div>
                   {p.category_name && <div className="text-xs text-gray-500 mt-1">{p.category_name}</div>}
                 </div>
-                <div className="text-right">
-                  {p.price_msrp != null && <div className="font-semibold">${p.price_msrp.toFixed(2)}</div>}
-                  {p.is_discontinued && <Badge variant="destructive">Discontinued</Badge>}
+                <div className="text-right flex items-center gap-4">
+                  <div>
+                    {p.price_msrp != null && <div className="font-semibold">${p.price_msrp.toFixed(2)}</div>}
+                    {p.is_discontinued && <Badge variant="destructive">Discontinued</Badge>}
+                  </div>
+                  {p.price_msrp && !p.is_discontinued && (
+                    <Button size="sm" onClick={() => handleAddToCart(p)}>
+                      <ShoppingCart className="h-4 w-4 mr-1" />
+                      Add to Cart
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

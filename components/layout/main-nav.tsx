@@ -1,22 +1,23 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Car, Menu, X, Search, User, ShoppingCart, Settings, Wrench, MessageSquare, CuboidIcon as Cube } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { UserMenu } from '@/components/auth/user-menu'
-import { useAuth } from '@/contexts/auth-context'
+import { useState } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { Car, Menu, X, Search, ShoppingCart, Settings, Wrench, MessageSquare, CuboidIcon as Cube } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { UserMenu } from "@/components/auth/user-menu"
+import { CartButton } from "@/components/cart/cart-button"
+import { useAuth } from "@/contexts/auth-context"
 
 const navigation = [
-  { name: 'Home', href: '/', icon: Car },
-  { name: 'Browse Parts', href: '/browse', icon: Search },
-  { name: 'OEM Catalog', href: '/oem-catalog', icon: Settings },
-  { name: 'Maintenance', href: '/maintenance', icon: Wrench },
-  { name: 'Forum', href: '/forum', icon: MessageSquare },
-  { name: '3D Simulator', href: '/3d-simulator', icon: Cube },
-  { name: 'Sell Parts', href: '/sell', icon: ShoppingCart },
+  { name: "Home", href: "/", icon: Car },
+  { name: "Browse Parts", href: "/browse", icon: Search },
+  { name: "OEM Catalog", href: "/oem-catalog", icon: Settings },
+  { name: "Maintenance", href: "/maintenance", icon: Wrench },
+  { name: "Forum", href: "/forum", icon: MessageSquare },
+  { name: "3D Simulator", href: "/3d-simulator", icon: Cube },
+  { name: "Sell Parts", href: "/sell", icon: ShoppingCart },
 ]
 
 export function MainNav() {
@@ -46,9 +47,7 @@ export function MainNav() {
                   key={item.name}
                   href={item.href}
                   className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    isActive ? "text-blue-600 bg-blue-50" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -64,29 +63,20 @@ export function MainNav() {
             <div className="hidden lg:block">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Search parts..."
-                  className="pl-10 w-64"
-                />
+                <Input type="text" placeholder="Search parts..." className="pl-10 w-64" />
               </div>
             </div>
+
+            {/* Cart Button */}
+            <CartButton />
 
             {/* User Menu */}
             <UserMenu />
 
             {/* Mobile menu button */}
             <div className="md:hidden">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
+              <Button variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </Button>
             </div>
           </div>
@@ -100,11 +90,7 @@ export function MainNav() {
               <div className="px-3 py-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search parts..."
-                    className="pl-10 w-full"
-                  />
+                  <Input type="text" placeholder="Search parts..." className="pl-10 w-full" />
                 </div>
               </div>
 
@@ -117,9 +103,7 @@ export function MainNav() {
                     key={item.name}
                     href={item.href}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
-                      isActive
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                      isActive ? "text-blue-600 bg-blue-50" : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >

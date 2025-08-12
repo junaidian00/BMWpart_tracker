@@ -1,11 +1,14 @@
-import { Suspense } from 'react'
-import { Search, Car, Wrench, Users, Star, TrendingUp, Shield, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import Link from 'next/link'
-import { TwoSeriesShowcase } from '@/components/oem/two-series-showcase'
+"use client"
+
+import { Suspense } from "react"
+import { Search, Car, Wrench, Users, Star, TrendingUp, Shield, Clock } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+import { TwoSeriesShowcase } from "@/components/oem/two-series-showcase"
+import { useCart } from "@/contexts/cart-context"
 
 const featuredParts = [
   {
@@ -17,7 +20,7 @@ const featuredParts = [
     rating: 4.8,
     reviews: 156,
     inStock: true,
-    category: "Engine"
+    category: "Engine",
   },
   {
     id: 2,
@@ -28,18 +31,18 @@ const featuredParts = [
     rating: 4.9,
     reviews: 203,
     inStock: true,
-    category: "Brakes"
+    category: "Brakes",
   },
   {
     id: 3,
     name: "BMW 2 Series Air Filter",
     partNumber: "13717571355",
-    price: 32.50,
+    price: 32.5,
     image: "/placeholder.svg?height=200&width=200",
     rating: 4.7,
     reviews: 89,
     inStock: false,
-    category: "Engine"
+    category: "Engine",
   },
   {
     id: 4,
@@ -50,25 +53,38 @@ const featuredParts = [
     rating: 4.8,
     reviews: 124,
     inStock: true,
-    category: "Engine"
-  }
+    category: "Engine",
+  },
 ]
 
 const popularCategories = [
   { name: "Engine Parts", count: 1247, icon: Car },
   { name: "Brake System", count: 856, icon: Shield },
   { name: "Suspension", count: 634, icon: Wrench },
-  { name: "Electrical", count: 423, icon: TrendingUp }
+  { name: "Electrical", count: 423, icon: TrendingUp },
 ]
 
 const stats = [
   { label: "Parts Available", value: "50,000+", icon: Car },
   { label: "Happy Customers", value: "25,000+", icon: Users },
   { label: "Years Experience", value: "15+", icon: Clock },
-  { label: "Average Rating", value: "4.8/5", icon: Star }
+  { label: "Average Rating", value: "4.8/5", icon: Star },
 ]
 
 export default function HomePage() {
+  const { addItem } = useCart()
+
+  const handleAddToCart = (part: (typeof featuredParts)[0]) => {
+    addItem({
+      id: part.partNumber,
+      partNumber: part.partNumber,
+      partName: part.name,
+      price: part.price,
+      category: part.category,
+      compatibility: [`${part.category} compatible`],
+    })
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -81,10 +97,10 @@ export default function HomePage() {
               <span className="block text-blue-300">Marketplace</span>
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-blue-100">
-              Find genuine OEM and high-quality aftermarket parts for your BMW. 
-              Fast shipping, expert support, and unbeatable prices.
+              Find genuine OEM and high-quality aftermarket parts for your BMW. Fast shipping, expert support, and
+              unbeatable prices.
             </p>
-            
+
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto mb-8">
               <div className="relative">
@@ -104,7 +120,11 @@ export default function HomePage() {
               <Button size="lg" className="bg-white text-blue-900 hover:bg-blue-50">
                 Browse Parts
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-blue-900 bg-transparent"
+              >
                 Sell Your Parts
               </Button>
             </div>
@@ -133,9 +153,7 @@ export default function HomePage() {
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Featured Parts
-            </h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Featured Parts</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Hand-picked premium parts with excellent reviews and fast shipping
             </p>
@@ -151,10 +169,8 @@ export default function HomePage() {
                       alt={part.name}
                       className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <Badge 
-                      className={`absolute top-2 right-2 ${part.inStock ? 'bg-green-500' : 'bg-red-500'}`}
-                    >
-                      {part.inStock ? 'In Stock' : 'Out of Stock'}
+                    <Badge className={`absolute top-2 right-2 ${part.inStock ? "bg-green-500" : "bg-red-500"}`}>
+                      {part.inStock ? "In Stock" : "Out of Stock"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -164,22 +180,16 @@ export default function HomePage() {
                       {part.category}
                     </Badge>
                   </div>
-                  <CardTitle className="text-lg mb-2 line-clamp-2">
-                    {part.name}
-                  </CardTitle>
-                  <CardDescription className="text-sm text-gray-500 mb-3">
-                    Part #: {part.partNumber}
-                  </CardDescription>
-                  
+                  <CardTitle className="text-lg mb-2 line-clamp-2">{part.name}</CardTitle>
+                  <CardDescription className="text-sm text-gray-500 mb-3">Part #: {part.partNumber}</CardDescription>
+
                   <div className="flex items-center mb-3">
                     <div className="flex items-center">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
                           className={`h-4 w-4 ${
-                            i < Math.floor(part.rating)
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
+                            i < Math.floor(part.rating) ? "text-yellow-400 fill-current" : "text-gray-300"
                           }`}
                         />
                       ))}
@@ -190,11 +200,9 @@ export default function HomePage() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-blue-600">
-                      ${part.price}
-                    </span>
-                    <Button size="sm" disabled={!part.inStock}>
-                      {part.inStock ? 'Add to Cart' : 'Notify Me'}
+                    <span className="text-2xl font-bold text-blue-600">${part.price}</span>
+                    <Button size="sm" disabled={!part.inStock} onClick={() => handleAddToCart(part)}>
+                      {part.inStock ? "Add to Cart" : "Notify Me"}
                     </Button>
                   </div>
                 </CardContent>
@@ -216,17 +224,13 @@ export default function HomePage() {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Popular Categories
-            </h2>
-            <p className="text-xl text-gray-600">
-              Browse parts by category to find exactly what you need
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Popular Categories</h2>
+            <p className="text-xl text-gray-600">Browse parts by category to find exactly what you need</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {popularCategories.map((category, index) => (
-              <Link key={index} href={`/browse?category=${category.name.toLowerCase().replace(' ', '-')}`}>
+              <Link key={index} href={`/browse?category=${category.name.toLowerCase().replace(" ", "-")}`}>
                 <Card className="group hover:shadow-lg transition-all cursor-pointer border-2 hover:border-blue-300">
                   <CardContent className="p-6 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4 group-hover:bg-blue-200 transition-colors">
@@ -258,12 +262,10 @@ export default function HomePage() {
       {/* CTA Section */}
       <section className="py-16 bg-blue-900 text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Find Your Parts?
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Find Your Parts?</h2>
           <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
-            Join thousands of BMW enthusiasts who trust us for their parts needs. 
-            Fast shipping, expert support, and quality guaranteed.
+            Join thousands of BMW enthusiasts who trust us for their parts needs. Fast shipping, expert support, and
+            quality guaranteed.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/browse">
@@ -272,7 +274,11 @@ export default function HomePage() {
               </Button>
             </Link>
             <Link href="/sell">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-900">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-blue-900 bg-transparent"
+              >
                 Sell Your Parts
               </Button>
             </Link>
