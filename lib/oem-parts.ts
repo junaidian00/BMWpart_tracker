@@ -73,6 +73,23 @@ export interface SearchOEMPartsParams {
 export type SearchFilters = SearchOEMPartsParams
 
 function convertRealOEMToBMWOEM(realOEMPart: RealOEMPart): BMWOEMPart {
+  let earliestYear = null
+  let latestYear = null
+
+  if (realOEMPart.compatibility.years.length > 0) {
+    if (realOEMPart.compatibility.years.length === 1) {
+      earliestYear = latestYear = realOEMPart.compatibility.years[0]
+    } else if (realOEMPart.compatibility.years.length < 100) {
+      // Only use Math.min/max for reasonable array sizes
+      earliestYear = Math.min(...realOEMPart.compatibility.years)
+      latestYear = Math.max(...realOEMPart.compatibility.years)
+    } else {
+      // For large arrays, assume it's a range from 1970-2026
+      earliestYear = 1970
+      latestYear = 2026
+    }
+  }
+
   return {
     id: realOEMPart.id,
     part_number: realOEMPart.partNumber,
@@ -86,13 +103,22 @@ function convertRealOEMToBMWOEM(realOEMPart: RealOEMPart): BMWOEMPart {
     compatible_chassis: realOEMPart.compatibility.chassisCodes,
     compatible_engines: realOEMPart.compatibility.engineCodes,
     compatible_body_types: realOEMPart.compatibility.bodyTypes || [],
-    earliest_year: Math.min(...realOEMPart.compatibility.years),
-    latest_year: Math.max(...realOEMPart.compatibility.years),
+    earliest_year: earliestYear,
+    latest_year: latestYear,
   }
 }
 
 function comprehensiveFallbackFilter(list: RealOEMPart[], params: SearchOEMPartsParams): BMWOEMPart[] {
+  if (!list || list.length === 0) {
+    return []
+  }
+
   let parts = [...list]
+
+  const maxParts = 1000
+  if (parts.length > maxParts) {
+    parts = parts.slice(0, maxParts)
+  }
 
   if (params.query) {
     const q = params.query.toLowerCase()
@@ -141,8 +167,14 @@ function comprehensiveFallbackFilter(list: RealOEMPart[], params: SearchOEMParts
     parts = parts.filter((p) => p.availability !== "Discontinued")
   }
 
-  const limited = params.limit ? parts.slice(0, params.limit) : parts
-  return limited.map(convertRealOEMToBMWOEM)
+  const limited = params.limit ? parts.slice(0, params.limit) : parts.slice(0, 50)
+
+  try {
+    return limited.map(convertRealOEMToBMWOEM)
+  } catch (error) {
+    console.error("Error converting parts:", error)
+    return []
+  }
 }
 
 export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWOEMPart[]> {
