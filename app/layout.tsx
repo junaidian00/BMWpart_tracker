@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description:
     "The ultimate marketplace for BMW F-chassis parts. Find OEM and aftermarket parts for your F22, F23, F30, F31, F32, F33, and F36 BMW with comprehensive compatibility information.",
   keywords: "BMW parts, F30, F32, F33, F36, F22, F23, OEM parts, BMW marketplace, 3 series, 4 series, 2 series",
-    generator: 'v0.dev'
+    generator: 'v0.app'
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

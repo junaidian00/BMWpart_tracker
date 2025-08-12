@@ -72,6 +72,89 @@ export interface SearchOEMPartsParams {
 
 export type SearchFilters = SearchOEMPartsParams
 
+const SAMPLE_OEM_PARTS: BMWOEMPart[] = [
+  {
+    id: "1",
+    part_number: "11427566327",
+    part_name: "Oil Filter",
+    description: "Engine oil filter for BMW vehicles",
+    price_msrp: 15.99,
+    is_discontinued: false,
+    superseded_by: null,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    compatible_chassis: ["ALL"],
+    compatible_engines: ["ALL"],
+    compatible_body_types: ["ALL"],
+    earliest_year: 1970,
+    latest_year: 2026,
+  },
+  {
+    id: "2",
+    part_number: "34116794300",
+    part_name: "Brake Pad Set Front",
+    description: "Front brake pad set for BMW vehicles",
+    price_msrp: 89.99,
+    is_discontinued: false,
+    superseded_by: null,
+    category_name: "Brake System",
+    category_code: "BRAKES",
+    compatible_chassis: ["ALL"],
+    compatible_engines: ["ALL"],
+    compatible_body_types: ["ALL"],
+    earliest_year: 1970,
+    latest_year: 2026,
+  },
+  {
+    id: "3",
+    part_number: "31336752735",
+    part_name: "Front Shock Absorber",
+    description: "Front shock absorber for BMW vehicles",
+    price_msrp: 245.99,
+    is_discontinued: false,
+    superseded_by: null,
+    category_name: "Suspension & Steering",
+    category_code: "SUSPENSION",
+    compatible_chassis: ["ALL"],
+    compatible_engines: ["ALL"],
+    compatible_body_types: ["ALL"],
+    earliest_year: 1970,
+    latest_year: 2026,
+  },
+  {
+    id: "4",
+    part_number: "17117570261",
+    part_name: "Radiator",
+    description: "Engine cooling radiator for BMW vehicles",
+    price_msrp: 389.99,
+    is_discontinued: false,
+    superseded_by: null,
+    category_name: "Cooling System",
+    category_code: "COOLING",
+    compatible_chassis: ["ALL"],
+    compatible_engines: ["ALL"],
+    compatible_body_types: ["ALL"],
+    earliest_year: 1970,
+    latest_year: 2026,
+  },
+  {
+    id: "5",
+    part_number: "51117237045",
+    part_name: "Front Bumper Cover",
+    description: "Front bumper cover for BMW vehicles",
+    price_msrp: 599.99,
+    is_discontinued: false,
+    superseded_by: null,
+    category_name: "Exterior Parts",
+    category_code: "EXTERIOR",
+    compatible_chassis: ["ALL"],
+    compatible_engines: ["ALL"],
+    compatible_body_types: ["ALL"],
+    earliest_year: 1970,
+    latest_year: 2026,
+  },
+]
+
 function convertRealOEMToBMWOEM(realOEMPart: RealOEMPart): BMWOEMPart {
   let earliestYear = null
   let latestYear = null
@@ -105,78 +188,6 @@ function convertRealOEMToBMWOEM(realOEMPart: RealOEMPart): BMWOEMPart {
     compatible_body_types: realOEMPart.compatibility.bodyTypes || [],
     earliest_year: earliestYear,
     latest_year: latestYear,
-  }
-}
-
-function comprehensiveFallbackFilter(list: RealOEMPart[], params: SearchOEMPartsParams): BMWOEMPart[] {
-  if (!list || list.length === 0) {
-    return []
-  }
-
-  let parts = [...list]
-
-  // Limit initial processing to prevent overwhelming the browser
-  const maxParts = 500
-  if (parts.length > maxParts) {
-    parts = parts.slice(0, maxParts)
-  }
-
-  // Apply filters in order of selectivity (most selective first)
-  if (params.partNumber) {
-    const pn = params.partNumber.toLowerCase()
-    parts = parts.filter((p) => p.partNumber.toLowerCase().includes(pn))
-  }
-
-  if (params.categoryCode && params.categoryCode !== "all") {
-    const categoryName = params.categoryCode.toLowerCase().replace(/_/g, " ")
-    parts = parts.filter((p) => p.category.toLowerCase() === categoryName)
-  }
-
-  const series = params.seriesCode ?? params.chassisCode
-  if (series) {
-    parts = parts.filter(
-      (p) => p.compatibility.chassisCodes.includes("ALL") || p.compatibility.chassisCodes.includes(series),
-    )
-  }
-
-  if (params.engineCode) {
-    parts = parts.filter(
-      (p) => p.compatibility.engineCodes.includes("ALL") || p.compatibility.engineCodes.includes(params.engineCode!),
-    )
-  }
-
-  if (params.query) {
-    const q = params.query.toLowerCase()
-    parts = parts.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.partNumber.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q),
-    )
-  }
-
-  if (params.bodyType) {
-    const bt = (params.bodyType || "").toLowerCase()
-    parts = parts.filter((p) => {
-      const arr = p.compatibility.bodyTypes
-      if (!arr || arr.length === 0) return true
-      return arr.map((x) => x.toLowerCase()).includes(bt)
-    })
-  }
-
-  if (!params.includeDiscontinued) {
-    parts = parts.filter((p) => p.availability !== "Discontinued")
-  }
-
-  // Apply final limit
-  const limited = params.limit ? parts.slice(0, params.limit) : parts.slice(0, 50)
-
-  try {
-    return limited.map(convertRealOEMToBMWOEM)
-  } catch (error) {
-    console.error("Error converting parts:", error)
-    return []
   }
 }
 
@@ -227,7 +238,17 @@ export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWO
       latest_year: row.latest_year ?? null,
     }))
   } catch {
-    return comprehensiveFallbackFilter(REALOEM_PARTS_DATABASE, params)
+    return SAMPLE_OEM_PARTS.filter((part) => {
+      if (params.query) {
+        const q = params.query.toLowerCase()
+        return (
+          part.part_name.toLowerCase().includes(q) ||
+          part.part_number.toLowerCase().includes(q) ||
+          (part.description && part.description.toLowerCase().includes(q))
+        )
+      }
+      return true
+    }).slice(0, params.limit || 50)
   }
 }
 
