@@ -79,14 +79,14 @@ function convertRealOEMToBMWOEM(realOEMPart: RealOEMPart): BMWOEMPart {
   if (realOEMPart.compatibility.years.length > 0) {
     if (realOEMPart.compatibility.years.length === 1) {
       earliestYear = latestYear = realOEMPart.compatibility.years[0]
-    } else if (realOEMPart.compatibility.years.length < 100) {
+    } else if (realOEMPart.compatibility.years.length > 50) {
+      // For large arrays (universal parts), assume it's the full range
+      earliestYear = 1970
+      latestYear = 2026
+    } else {
       // Only use Math.min/max for reasonable array sizes
       earliestYear = Math.min(...realOEMPart.compatibility.years)
       latestYear = Math.max(...realOEMPart.compatibility.years)
-    } else {
-      // For large arrays, assume it's a range from 1970-2026
-      earliestYear = 1970
-      latestYear = 2026
     }
   }
 
@@ -115,22 +115,13 @@ function comprehensiveFallbackFilter(list: RealOEMPart[], params: SearchOEMParts
 
   let parts = [...list]
 
-  const maxParts = 1000
+  // Limit initial processing to prevent overwhelming the browser
+  const maxParts = 500
   if (parts.length > maxParts) {
     parts = parts.slice(0, maxParts)
   }
 
-  if (params.query) {
-    const q = params.query.toLowerCase()
-    parts = parts.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.partNumber.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q),
-    )
-  }
-
+  // Apply filters in order of selectivity (most selective first)
   if (params.partNumber) {
     const pn = params.partNumber.toLowerCase()
     parts = parts.filter((p) => p.partNumber.toLowerCase().includes(pn))
@@ -154,6 +145,17 @@ function comprehensiveFallbackFilter(list: RealOEMPart[], params: SearchOEMParts
     )
   }
 
+  if (params.query) {
+    const q = params.query.toLowerCase()
+    parts = parts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.partNumber.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q),
+    )
+  }
+
   if (params.bodyType) {
     const bt = (params.bodyType || "").toLowerCase()
     parts = parts.filter((p) => {
@@ -167,6 +169,7 @@ function comprehensiveFallbackFilter(list: RealOEMPart[], params: SearchOEMParts
     parts = parts.filter((p) => p.availability !== "Discontinued")
   }
 
+  // Apply final limit
   const limited = params.limit ? parts.slice(0, params.limit) : parts.slice(0, 50)
 
   try {
