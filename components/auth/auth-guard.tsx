@@ -2,12 +2,16 @@
 
 import type { ReactNode } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { isSupabaseConfigured } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
-export function AuthGuard({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth()
+interface AuthGuardProps {
+  children: ReactNode
+  requireAuth?: boolean
+}
+
+export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
+  const { user, loading, envReady } = useAuth()
 
   // While checking auth
   if (loading) {
@@ -21,8 +25,13 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     )
   }
 
+  // If requireAuth is false (like for sign-up page), always show content
+  if (!requireAuth) {
+    return <>{children}</>
+  }
+
   // If Supabase is configured and user is not signed in, block access
-  if (isSupabaseConfigured && !user) {
+  if (envReady && !user) {
     return (
       <main className="min-h-[60vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">

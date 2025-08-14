@@ -299,17 +299,10 @@ export async function createVehicle(input: CreateVehicleInput): Promise<Vehicle>
     year: input.year,
     make: input.make || "BMW",
     model: input.model,
-    chassis_code: inferChassisCode(input.model, input.year),
     engine: input.engine,
-    transmission: "Unknown",
-    body_type: "Unknown",
     mileage: input.mileage,
     vin: input.vin ?? "",
     nickname: input.nickname ?? "",
-    color: "Unknown",
-    purchase_date: null,
-    purchase_price: null,
-    notes: null,
   }
 
   // If Supabase isn't configured or we're in demo mode, return a locally created record
@@ -385,6 +378,29 @@ export async function addMaintenanceReminder(
   } catch (error) {
     console.error("Error adding maintenance reminder:", error)
     throw error
+  }
+}
+
+export async function checkDatabaseHealth(): Promise<{
+  connected: boolean
+  tablesExist: boolean
+  error?: string
+}> {
+  if (!isSupabaseConfigured) {
+    return { connected: false, tablesExist: false, error: "Supabase not configured" }
+  }
+
+  try {
+    // Test basic connection and table existence
+    const { data, error } = await supabase.from("vehicles").select("count", { count: "exact", head: true })
+
+    if (error) {
+      return { connected: true, tablesExist: false, error: error.message }
+    }
+
+    return { connected: true, tablesExist: true }
+  } catch (error: any) {
+    return { connected: false, tablesExist: false, error: error.message }
   }
 }
 

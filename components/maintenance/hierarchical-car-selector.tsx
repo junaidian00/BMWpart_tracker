@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 export interface CarSelection {
   year?: number
@@ -23,13 +24,15 @@ interface HierarchicalCarSelectorProps {
   onSelectionChange?: (selection: CarSelection) => void
   value?: CarSelection
   className?: string
+  showTitle?: boolean
+  showAddToGarage?: boolean
+  showBuildDate?: boolean // Added prop to control build date display
+  onAddToGarage?: (selection: CarSelection) => void
 }
 
 const YEAR_ACCURATE_BMW_DATA = {
-  // All years from 1970 to 2024
   years: Array.from({ length: 55 }, (_, i) => 2024 - i),
 
-  // Models available by year
   modelsByYear: {
     2024: [
       "1 Series",
@@ -196,11 +199,13 @@ const YEAR_ACCURATE_BMW_DATA = {
       "5 Series",
       "6 Series",
       "7 Series",
+      "8 Series",
       "M2",
       "M3",
       "M4",
       "M5",
       "M6",
+      "M8",
       "X1",
       "X2",
       "X3",
@@ -220,6 +225,7 @@ const YEAR_ACCURATE_BMW_DATA = {
       "5 Series",
       "6 Series",
       "7 Series",
+      "8 Series",
       "M2",
       "M3",
       "M4",
@@ -231,6 +237,7 @@ const YEAR_ACCURATE_BMW_DATA = {
       "X4",
       "X5",
       "X6",
+      "X7",
       "Z4",
       "i3",
       "i8",
@@ -243,17 +250,20 @@ const YEAR_ACCURATE_BMW_DATA = {
       "5 Series",
       "6 Series",
       "7 Series",
+      "8 Series",
       "M2",
       "M3",
       "M4",
       "M5",
       "M6",
+      "M8",
       "X1",
       "X2",
       "X3",
       "X4",
       "X5",
       "X6",
+      "X7",
       "Z4",
       "i3",
       "i8",
@@ -319,10 +329,8 @@ const YEAR_ACCURATE_BMW_DATA = {
     2012: ["1 Series", "3 Series", "5 Series", "6 Series", "7 Series", "M3", "M5", "M6", "X1", "X3", "X5", "X6", "Z4"],
     2011: ["1 Series", "3 Series", "5 Series", "6 Series", "7 Series", "M3", "M5", "M6", "X1", "X3", "X5", "X6", "Z4"],
     2010: ["1 Series", "3 Series", "5 Series", "6 Series", "7 Series", "M3", "M5", "M6", "X1", "X3", "X5", "X6", "Z4"],
-    // ... continuing pattern for older years
   } as Record<number, string[]>,
 
-  // Chassis codes by model and year
   chassisByModelAndYear: {
     "1 Series": {
       2024: ["F40"],
@@ -425,12 +433,9 @@ const YEAR_ACCURATE_BMW_DATA = {
       2015: ["F82", "F83"],
       2014: ["F82", "F83"],
     },
-    // ... continuing for all other models
   } as Record<string, Record<number, string[]>>,
 
-  // Engine codes by chassis and year
   enginesByChassisAndYear: {
-    // 1 Series engines
     F40: {
       2024: ["B38", "B48"],
       2023: ["B38", "B48"],
@@ -460,16 +465,8 @@ const YEAR_ACCURATE_BMW_DATA = {
       2013: ["N20", "N13"],
       2012: ["N20", "N13"],
     },
-    E87: {
-      2011: ["N43", "N52", "N54"],
-      2010: ["N43", "N52", "N54"],
-    },
-    E82: {
-      2011: ["N52", "N54", "N55"],
-      2010: ["N52", "N54", "N55"],
-    },
-
-    // 2 Series engines - CORRECTED
+    E87: { 2011: ["N43", "N52", "N54"], 2010: ["N43", "N52", "N54"] },
+    E82: { 2011: ["N52", "N54", "N55"], 2010: ["N52", "N54", "N55"] },
     F22: {
       2022: ["B48", "B58"],
       2021: ["B48", "B58"],
@@ -478,8 +475,8 @@ const YEAR_ACCURATE_BMW_DATA = {
       2018: ["B48", "B58"],
       2017: ["B48", "B58"],
       2016: ["B48", "B58"],
-      2015: ["N20", "N55"], // Corrected 2015 F22 engines to N20 and N55
-      2014: ["N20", "N55"], // Corrected 2014 F22 engines to N20 and N55
+      2015: ["N20", "N55"],
+      2014: ["N20", "N55"],
     },
     F23: {
       2022: ["B48", "B58"],
@@ -489,14 +486,10 @@ const YEAR_ACCURATE_BMW_DATA = {
       2018: ["B48", "B58"],
       2017: ["B48", "B58"],
       2016: ["B48", "B58"],
-      2015: ["N20", "N55"], // Corrected 2015 F23 engines to N20 and N55
-      2014: ["N20", "N55"], // Corrected 2014 F23 engines to N20 and N55
+      2015: ["N20", "N55"],
+      2014: ["N20", "N55"],
     },
-    F44: {
-      2024: ["B38", "B48"],
-      2023: ["B38", "B48"],
-      2022: ["B38", "B48"],
-    },
+    F44: { 2024: ["B38", "B48"], 2023: ["B38", "B48"], 2022: ["B38", "B48"] },
     F45: {
       2024: ["B38"],
       2023: ["B38"],
@@ -523,8 +516,6 @@ const YEAR_ACCURATE_BMW_DATA = {
       2015: ["B38"],
       2014: ["B38"],
     },
-
-    // 3 Series engines - CORRECTED
     G20: {
       2024: ["B48", "B58"],
       2023: ["B48", "B58"],
@@ -539,16 +530,17 @@ const YEAR_ACCURATE_BMW_DATA = {
       2022: ["B48", "B58"],
       2021: ["B48", "B58"],
       2020: ["B48", "B58"],
+      2019: ["B48", "B58"],
     },
     F30: {
       2019: ["B48", "B58"],
       2018: ["B48", "B58", "N20", "N55"],
       2017: ["B48", "B58", "N20", "N55"],
       2016: ["B48", "N20", "N55"],
-      2015: ["N20", "N26", "N55"], // Corrected 2015 F30 engines
-      2014: ["N20", "N26", "N55"], // Corrected 2014 F30 engines
-      2013: ["N20", "N26", "N55"], // Corrected 2013 F30 engines
-      2012: ["N20", "N26", "N55"], // Corrected 2012 F30 engines
+      2015: ["N20", "N26", "N55"],
+      2014: ["N20", "N26", "N55"],
+      2013: ["N20", "N26", "N55"],
+      2012: ["N20", "N26", "N55"],
     },
     F31: {
       2019: ["B48", "B58"],
@@ -566,16 +558,8 @@ const YEAR_ACCURATE_BMW_DATA = {
       2015: ["N20", "N55"],
       2014: ["N20", "N55"],
     },
-    E90: {
-      2012: ["N52", "N54", "N55"],
-      2011: ["N52", "N54", "N55"],
-      2010: ["N52", "N54", "N55"],
-    },
-    E91: {
-      2012: ["N52", "N54", "N55"],
-      2011: ["N52", "N54", "N55"],
-      2010: ["N52", "N54", "N55"],
-    },
+    E90: { 2012: ["N52", "N54", "N55"], 2011: ["N52", "N54", "N55"], 2010: ["N52", "N54", "N55"] },
+    E91: { 2012: ["N52", "N54", "N55"], 2011: ["N52", "N54", "N55"], 2010: ["N52", "N54", "N55"] },
     E92: {
       2013: ["N52", "N54", "N55"],
       2012: ["N52", "N54", "N55"],
@@ -588,34 +572,17 @@ const YEAR_ACCURATE_BMW_DATA = {
       2011: ["N52", "N54", "N55"],
       2010: ["N52", "N54", "N55"],
     },
-
-    // 4 Series engines - CORRECTED
-    G22: {
-      2024: ["B48", "B58"],
-      2023: ["B48", "B58"],
-      2022: ["B48", "B58"],
-      2021: ["B48", "B58"],
-    },
-    G23: {
-      2024: ["B48", "B58"],
-      2023: ["B48", "B58"],
-      2022: ["B48", "B58"],
-      2021: ["B48", "B58"],
-    },
-    G26: {
-      2024: ["B48", "B58"],
-      2023: ["B48", "B58"],
-      2022: ["B48", "B58"],
-      2021: ["B48", "B58"],
-    },
+    G22: { 2024: ["B48", "B58"], 2023: ["B48", "B58"], 2022: ["B48", "B58"], 2021: ["B48", "B58"] },
+    G23: { 2024: ["B48", "B58"], 2023: ["B48", "B58"], 2022: ["B48", "B58"], 2021: ["B48", "B58"] },
+    G26: { 2024: ["B48", "B58"], 2023: ["B48", "B58"], 2022: ["B48", "B58"], 2021: ["B48", "B58"] },
     F32: {
       2020: ["B48", "B58"],
       2019: ["B48", "B58"],
       2018: ["B48", "B58", "N20", "N55"],
       2017: ["B48", "B58", "N20", "N55"],
       2016: ["B48", "N20", "N55"],
-      2015: ["N20", "N26", "N55"], // Corrected 2015 F32 engines
-      2014: ["N20", "N26", "N55"], // Corrected 2014 F32 engines
+      2015: ["N20", "N26", "N55"],
+      2014: ["N20", "N26", "N55"],
     },
     F33: {
       2020: ["B48", "B58"],
@@ -623,8 +590,8 @@ const YEAR_ACCURATE_BMW_DATA = {
       2018: ["B48", "B58", "N20", "N55"],
       2017: ["B48", "B58", "N20", "N55"],
       2016: ["B48", "N20", "N55"],
-      2015: ["N20", "N26", "N55"], // Corrected 2015 F33 engines
-      2014: ["N20", "N26", "N55"], // Corrected 2014 F33 engines
+      2015: ["N20", "N26", "N55"],
+      2014: ["N20", "N26", "N55"],
     },
     F36: {
       2020: ["B48", "B58"],
@@ -632,216 +599,53 @@ const YEAR_ACCURATE_BMW_DATA = {
       2018: ["B48", "B58", "N20", "N55"],
       2017: ["B48", "B58", "N20", "N55"],
       2016: ["B48", "N20", "N55"],
-      2015: ["N20", "N26", "N55"], // Corrected 2015 F36 engines to include N20 and N55
-      2014: ["N20", "N26", "N55"], // Corrected 2014 F36 engines
+      2015: ["N20", "N26", "N55"],
+      2014: ["N20", "N26", "N55"],
     },
-
-    // 5 Series engines
-    G30: {
-      2024: ["B48", "B58"],
-      2023: ["B48", "B58"],
-      2022: ["B48", "B58"],
-      2021: ["B48", "B58"],
-      2020: ["B48", "B58"],
-      2019: ["B48", "B58"],
-      2018: ["B48", "B58"],
-      2017: ["B48", "B58"],
-    },
-    F10: {
-      2016: ["N20", "N55", "N63"],
-      2015: ["N20", "N55", "N63"],
-      2014: ["N20", "N55", "N63"],
-      2013: ["N20", "N55", "N63"],
-      2012: ["N20", "N55", "N63"],
-      2011: ["N52", "N55", "N63"],
-      2010: ["N52", "N55", "N63"],
-    },
-
-    // M Series engines - CORRECTED
-    G87: {
-      2024: ["S58"],
-      2023: ["S58"],
-      2022: ["S58"],
-    },
-    F87: {
-      2022: ["S55"],
-      2021: ["S55"],
-      2020: ["S55"],
-      2019: ["S55"],
-      2018: ["S55"],
-      2017: ["S55"],
-      2016: ["S55"],
-    },
-    G80: {
-      2024: ["S58"],
-      2023: ["S58"],
-      2022: ["S58"],
-      2021: ["S58"],
-    },
-    F80: {
-      2020: ["S55"],
-      2019: ["S55"],
-      2018: ["S55"],
-      2017: ["S55"],
-      2016: ["S55"],
-      2015: ["S55"],
-      2014: ["S55"],
-    },
-    G82: {
-      2024: ["S58"],
-      2023: ["S58"],
-      2022: ["S58"],
-      2021: ["S58"],
-    },
-    G83: {
-      2024: ["S58"],
-      2023: ["S58"],
-      2022: ["S58"],
-      2021: ["S58"],
-    },
-    F82: {
-      2020: ["S55"],
-      2019: ["S55"],
-      2018: ["S55"],
-      2017: ["S55"],
-      2016: ["S55"],
-      2015: ["S55"],
-      2014: ["S55"],
-    },
-    F83: {
-      2020: ["S55"],
-      2019: ["S55"],
-      2018: ["S55"],
-      2017: ["S55"],
-      2016: ["S55"],
-      2015: ["S55"],
-      2014: ["S55"],
-    },
-
-    // X Series engines
-    F48: {
-      2024: ["B38", "B48"],
-      2023: ["B38", "B48"],
-      2022: ["B38", "B48"],
-      2021: ["B38", "B48"],
-      2020: ["B38", "B48"],
-      2019: ["B38", "B48"],
-      2018: ["B38", "B48"],
-      2017: ["B38", "B48"],
-      2016: ["B38", "B48"],
-      2015: ["B38", "N20"],
-    },
-    F39: {
-      2024: ["B38", "B48"],
-      2023: ["B38", "B48"],
-      2022: ["B38", "B48"],
-      2021: ["B38", "B48"],
-      2020: ["B38", "B48"],
-      2019: ["B38", "B48"],
-      2018: ["B38", "B48"],
-    },
-    G01: {
-      2024: ["B48", "B58"],
-      2023: ["B48", "B58"],
-      2022: ["B48", "B58"],
-      2021: ["B48", "B58"],
-      2020: ["B48", "B58"],
-      2019: ["B48", "B58"],
-      2018: ["B48", "B58"],
-      2017: ["B48", "B58"],
-    },
-
-    // Z Series engines
-    G29: {
-      2024: ["B48", "B58"],
-      2023: ["B48", "B58"],
-      2022: ["B48", "B58"],
-      2021: ["B48", "B58"],
-      2020: ["B48", "B58"],
-      2019: ["B48", "B58"],
-      2018: ["B48", "B58"],
-      2017: ["B48", "B58"],
-    },
-    E89: {
-      2016: ["N20", "N55"],
-      2015: ["N20", "N55"],
-      2014: ["N20", "N55"],
-      2013: ["N20", "N55"],
-      2012: ["N20", "N55"],
-      2011: ["N52", "N54"],
-      2010: ["N52", "N54"],
-    },
-
-    // i Series engines
-    I01: {
-      2023: ["eDrive"],
-      2022: ["eDrive"],
-      2021: ["eDrive"],
-      2020: ["eDrive"],
-      2019: ["eDrive"],
-      2018: ["eDrive"],
-      2017: ["eDrive"],
-      2016: ["eDrive"],
-      2015: ["eDrive"],
-      2014: ["eDrive"],
-      2013: ["eDrive"],
-    },
-    G26: {
-      2024: ["eDrive"],
-      2023: ["eDrive"],
-      2022: ["eDrive"],
-      2021: ["eDrive"],
-    },
-    I12: {
-      2020: ["B38", "eDrive"],
-      2019: ["B38", "eDrive"],
-      2018: ["B38", "eDrive"],
-      2017: ["B38", "eDrive"],
-      2016: ["B38", "eDrive"],
-      2015: ["B38", "eDrive"],
-      2014: ["B38", "eDrive"],
-    },
-    iX1: {
-      2024: ["eDrive"],
-      2023: ["eDrive"],
-    },
+    G87: { 2024: ["S58"], 2023: ["S58"], 2022: ["S58"] },
+    F87: { 2022: ["S55"], 2021: ["S55"], 2020: ["S55"], 2019: ["S55"], 2018: ["S55"], 2017: ["S55"], 2016: ["S55"] },
+    G80: { 2024: ["S58"], 2023: ["S58"], 2022: ["S58"], 2021: ["S58"] },
+    F80: { 2020: ["S55"], 2019: ["S55"], 2018: ["S55"], 2017: ["S55"], 2016: ["S55"], 2015: ["S55"], 2014: ["S55"] },
+    G82: { 2024: ["S58"], 2023: ["S58"], 2022: ["S58"], 2021: ["S58"] },
+    G83: { 2024: ["S58"], 2023: ["S58"], 2022: ["S58"], 2021: ["S58"] },
+    F82: { 2020: ["S55"], 2019: ["S55"], 2018: ["S55"], 2017: ["S55"], 2016: ["S55"], 2015: ["S55"], 2014: ["S55"] },
+    F83: { 2020: ["S55"], 2019: ["S55"], 2018: ["S55"], 2017: ["S55"], 2016: ["S55"], 2015: ["S55"], 2014: ["S55"] },
   } as Record<string, Record<number, string[]>>,
 
-  // Transmissions by engine code
   transmissionsByEngine: {
-    // Modern engines
     B38: ["6MT", "7DCT", "8AT"],
     B46: ["6MT", "7DCT", "8AT"],
     B48: ["6MT", "8AT", "8HP"],
     B58: ["6MT", "8AT", "8HP"],
-
-    // Performance engines
     S55: ["6MT", "7DCT"],
     S58: ["6MT", "8AT"],
     S63: ["8AT", "8HP"],
     S68: ["8AT"],
-
-    // Legacy engines
     N20: ["6MT", "8AT"],
     N26: ["8AT"],
     N52: ["6MT", "6AT"],
     N54: ["6MT", "7DCT"],
     N55: ["6MT", "8AT"],
     N63: ["8AT"],
-
-    // Classic engines
+    N13: ["6MT", "8AT"],
     M54: ["5MT", "5AT"],
     M52: ["5MT", "5AT"],
     M50: ["5MT"],
     S54: ["6MT", "SMG"],
     S62: ["6MT", "5AT"],
-
-    // Electric
     eDrive: ["Single-Speed"],
   } as Record<string, string[]>,
 }
 
-export function HierarchicalCarSelector({ onSelectionChange, value, className }: HierarchicalCarSelectorProps) {
+export function HierarchicalCarSelector({
+  onSelectionChange,
+  value,
+  className,
+  showTitle = true,
+  showAddToGarage = false,
+  showBuildDate = true, // Default to true for backward compatibility
+  onAddToGarage,
+}: HierarchicalCarSelectorProps) {
   const [selection, setSelection] = useState<CarSelection>(value || {})
 
   const handleSelectionChange = (field: keyof CarSelection, newValue: string | number) => {
@@ -852,45 +656,70 @@ export function HierarchicalCarSelector({ onSelectionChange, value, className }:
       newSelection.chassisCode = undefined
       newSelection.engineCode = undefined
       newSelection.transmissionCode = undefined
+      newSelection.buildDate = undefined
     } else if (field === "modelName") {
       newSelection.chassisCode = undefined
       newSelection.engineCode = undefined
       newSelection.transmissionCode = undefined
+      newSelection.buildDate = undefined
     } else if (field === "chassisCode") {
       newSelection.engineCode = undefined
       newSelection.transmissionCode = undefined
+      newSelection.buildDate = undefined
     } else if (field === "engineCode") {
       newSelection.transmissionCode = undefined
+      newSelection.buildDate = undefined
+    } else if (field === "transmissionCode") {
+      newSelection.buildDate = undefined
     }
 
     setSelection(newSelection)
     onSelectionChange?.(newSelection)
   }
 
-  const availableModels = selection.year ? YEAR_ACCURATE_BMW_DATA.modelsByYear[selection.year] || [] : []
+  const generateBuildMonths = (year: number) => {
+    const months = []
+    for (let month = 1; month <= 12; month++) {
+      const monthStr = month.toString().padStart(2, "0")
+      months.push({
+        value: `${year}-${monthStr}`,
+        label: `${new Date(year, month - 1).toLocaleString("default", { month: "long" })} ${year}`,
+      })
+    }
+    return months
+  }
 
+  const availableModels = selection.year ? YEAR_ACCURATE_BMW_DATA.modelsByYear[selection.year] || [] : []
   const availableChassis =
     selection.modelName && selection.year
       ? YEAR_ACCURATE_BMW_DATA.chassisByModelAndYear[selection.modelName]?.[selection.year] || []
       : []
-
   const availableEngines =
     selection.chassisCode && selection.year
       ? YEAR_ACCURATE_BMW_DATA.enginesByChassisAndYear[selection.chassisCode]?.[selection.year] || []
       : []
-
   const availableTransmissions = selection.engineCode
     ? YEAR_ACCURATE_BMW_DATA.transmissionsByEngine[selection.engineCode] || []
     : []
 
+  const canSelectBuildDate =
+    showBuildDate &&
+    selection.year &&
+    selection.modelName &&
+    selection.chassisCode &&
+    selection.engineCode &&
+    selection.transmissionCode
+  const isVehicleComplete = canSelectBuildDate && selection.buildDate
+
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle>Select Your BMW</CardTitle>
-      </CardHeader>
+      {showTitle && (
+        <CardHeader>
+          <CardTitle>Select Your BMW</CardTitle>
+        </CardHeader>
+      )}
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Year Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Year</label>
             <Select
@@ -910,7 +739,6 @@ export function HierarchicalCarSelector({ onSelectionChange, value, className }:
             </Select>
           </div>
 
-          {/* Model Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Model</label>
             <Select
@@ -931,7 +759,6 @@ export function HierarchicalCarSelector({ onSelectionChange, value, className }:
             </Select>
           </div>
 
-          {/* Chassis Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Chassis Code</label>
             <Select
@@ -952,7 +779,6 @@ export function HierarchicalCarSelector({ onSelectionChange, value, className }:
             </Select>
           </div>
 
-          {/* Engine Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Engine Code</label>
             <Select
@@ -973,7 +799,6 @@ export function HierarchicalCarSelector({ onSelectionChange, value, className }:
             </Select>
           </div>
 
-          {/* Transmission Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Transmission</label>
             <Select
@@ -995,18 +820,54 @@ export function HierarchicalCarSelector({ onSelectionChange, value, className }:
           </div>
         </div>
 
-        {/* Selection Summary */}
+        {/* Only show build date if showBuildDate prop is true */}
+        {showBuildDate && canSelectBuildDate && (
+          <div className="border-t pt-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Build Date</label>
+              <Select
+                value={selection.buildDate || ""}
+                onValueChange={(value) => handleSelectionChange("buildDate", value)}
+              >
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue placeholder="Select build month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {generateBuildMonths(selection.year!).map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Select the month your vehicle was built (found on door jamb sticker)
+              </p>
+            </div>
+          </div>
+        )}
+
+        {showAddToGarage && isVehicleComplete && (
+          <div className="border-t pt-4">
+            <Button onClick={() => onAddToGarage?.(selection)} className="w-full" size="lg">
+              Add Vehicle to Garage
+            </Button>
+          </div>
+        )}
+
         {(selection.year ||
           selection.modelName ||
           selection.chassisCode ||
           selection.engineCode ||
-          selection.transmissionCode) && (
+          selection.transmissionCode ||
+          selection.buildDate) && (
           <div className="flex flex-wrap gap-2 pt-4 border-t">
             {selection.year && <Badge variant="secondary">{selection.year}</Badge>}
             {selection.modelName && <Badge variant="secondary">{selection.modelName}</Badge>}
             {selection.chassisCode && <Badge variant="secondary">{selection.chassisCode}</Badge>}
             {selection.engineCode && <Badge variant="secondary">{selection.engineCode}</Badge>}
             {selection.transmissionCode && <Badge variant="secondary">{selection.transmissionCode}</Badge>}
+            {selection.buildDate && <Badge variant="outline">Built: {selection.buildDate}</Badge>}
           </div>
         )}
       </CardContent>

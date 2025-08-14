@@ -1,31 +1,215 @@
 "use client"
 
-import { useState } from "react"
-import { HierarchicalCarSelector } from "@/components/maintenance/hierarchical-car-selector"
+import { useState, useEffect } from "react"
+import { HierarchicalCarSelector, type CarSelection } from "@/components/maintenance/hierarchical-car-selector"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/auth-context"
+import { addVehicleToGarage, getGarageVehicles, type GarageVehicle } from "@/lib/garage"
+import { Car, Wrench } from "lucide-react"
+import Link from "next/link"
+import { DatabaseStatus } from "@/components/maintenance/database-status"
 
-export default function MaintenanceClient() {
-  const [selection, setSelection] = useState({
-    year: "",
-    model: "",
-    chassis: "",
-    engine: "",
-    transmission: "",
-  })
-
+function GarageVehicleCard({ vehicle }: { vehicle: GarageVehicle }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Maintenance</CardTitle>
-        <CardDescription>Select your car to view maintenance items.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <HierarchicalCarSelector value={selection} onChange={setSelection} showTitle={false} />
-        <div className="text-sm text-muted-foreground">
-          Selected: {selection.year || "-"} / {selection.model || "-"} / {selection.chassis || "-"} /{" "}
-          {selection.engine || "-"} / {selection.transmission || "-"}
+    <Card className="hover:shadow-sm transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h3 className="font-semibold">
+              {vehicle.year} {vehicle.model}
+            </h3>
+            {vehicle.nickname && <p className="text-sm text-muted-foreground">"{vehicle.nickname}"</p>}
+          </div>
+          <Link href={`/maintenance/vehicle/${vehicle.id}`}>
+            <Button variant="outline" size="sm">
+              <Wrench className="h-4 w-4 mr-1" />
+              Service
+            </Button>
+          </Link>
         </div>
+
+        <div className="flex flex-wrap gap-2 mb-3">
+          <Badge variant="secondary">{vehicle.chassis_code}</Badge>
+          <Badge variant="outline">{vehicle.engine}</Badge>
+          <Badge variant="outline">{vehicle.mileage?.toLocaleString()} mi</Badge>
+        </div>
+
+        <div className="text-xs text-muted-foreground">Added {new Date(vehicle.created_at).toLocaleDateString()}</div>
       </CardContent>
     </Card>
+  )
+}
+
+export default function MaintenanceClient() {
+  const [selection, setSelection] = useState<CarSelection>({})
+  const [garageVehicles, setGarageVehicles] = useState<GarageVehicle[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadingGarage, setLoadingGarage] = useState(true)
+  const { user } = useAuth()
+  const { toast } = useToast()
+
+  // Load user's garage vehicles on component mount
+  useEffect(() => {
+    const loadGarageVehicles = async () => {
+      if (!user?.id) {
+        setLoadingGarage(false)
+        return
+      }
+
+      try {
+        const vehicles = await getGarageVehicles(user.id)
+        setGarageVehicles(vehicles)
+      } catch (error) {
+        console.error("Failed to load garage vehicles:", error)
+      } finally {
+        setLoadingGarage(false)
+      }
+    }
+
+    loadGarageVehicles()
+  }, [user?.id])
+
+  const handleAddToGarage = async (vehicleSelection: CarSelection) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to add vehicles to your garage.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const newVehicle = await addVehicleToGarage(vehicleSelection, user.id)
+
+      // Update local garage state
+      setGarageVehicles((prev) => [newVehicle, ...prev])
+
+      toast({
+        title: "Vehicle Added to Garage",
+        description: `${vehicleSelection.year} ${vehicleSelection.modelName} (${vehicleSelection.chassisCode}) has been added to your garage.`,
+      })
+
+      // Reset selection after adding
+      setSelection({})
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add vehicle to garage. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Database Status Section */}
+      <DatabaseStatus />
+
+      {/* Add Vehicle Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Add Vehicle to Garage</CardTitle>
+          <CardDescription>Select your BMW to add it to your garage and track maintenance history.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <HierarchicalCarSelector
+            value={selection}
+            onSelectionChange={setSelection}
+            showTitle={false}
+            showAddToGarage={true}
+            onAddToGarage={handleAddToGarage}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Selection Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Selection Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <div>Year: {selection.year || "Not selected"}</div>
+            <div>Model: {selection.modelName || "Not selected"}</div>
+            <div>Chassis: {selection.chassisCode || "Not selected"}</div>
+            <div>Engine: {selection.engineCode || "Not selected"}</div>
+            <div>Transmission: {selection.transmissionCode || "Not selected"}</div>
+            <div>Build Date: {selection.buildDate || "Not selected"}</div>
+          </div>
+
+          {selection.year &&
+            selection.modelName &&
+            selection.chassisCode &&
+            selection.engineCode &&
+            selection.transmissionCode &&
+            !selection.buildDate && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-800">
+                  Almost there! Select your vehicle's build date to add it to your garage.
+                </p>
+              </div>
+            )}
+        </CardContent>
+      </Card>
+
+      {/* My Garage Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Car className="h-5 w-5" />
+                My Garage
+              </CardTitle>
+              <CardDescription>
+                {garageVehicles.length} vehicle{garageVehicles.length !== 1 ? "s" : ""} in your garage
+              </CardDescription>
+            </div>
+            <Link href="/garage">
+              <Button variant="outline" size="sm">
+                View All
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingGarage ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-4">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+                    <div className="flex gap-2">
+                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : garageVehicles.length === 0 ? (
+            <div className="text-center py-8">
+              <Car className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">No vehicles in your garage yet</p>
+              <p className="text-sm text-muted-foreground">Add your first BMW above to get started</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {garageVehicles.slice(0, 4).map((vehicle) => (
+                <GarageVehicleCard key={vehicle.id} vehicle={vehicle} />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }

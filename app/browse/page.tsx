@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -14,19 +14,22 @@ import { Loader2, Search, ShoppingCart } from "lucide-react"
 export default function BrowsePage() {
   const [selection, setSelection] = useState<CarSelection>({})
   const [query, setQuery] = useState("")
+  const [directChassisCode, setDirectChassisCode] = useState("")
+  const [directEngineCode, setDirectEngineCode] = useState("")
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<BMWOEMPart[]>([])
+  const [searchMode, setSearchMode] = useState<"vehicle" | "direct">("vehicle")
   const { addItem } = useCart()
 
   const filters = useMemo(
     () => ({
       query: query || undefined,
-      chassisCode: selection.chassisCode || undefined,
-      engineCode: selection.engineCode || undefined,
+      chassisCode: searchMode === "direct" ? directChassisCode || undefined : selection.chassisCode || undefined,
+      engineCode: searchMode === "direct" ? directEngineCode || undefined : selection.engineCode || undefined,
       includeDiscontinued: false,
       limit: 50,
     }),
-    [query, selection.chassisCode, selection.engineCode],
+    [query, searchMode, directChassisCode, directEngineCode, selection.chassisCode, selection.engineCode],
   )
 
   async function runSearch() {
@@ -50,13 +53,8 @@ export default function BrowsePage() {
     })
   }
 
-  // Auto-search when vehicle selection completed and there is at least a chassis
-  useEffect(() => {
-    if (selection.chassisCode) {
-      runSearch()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selection.chassisCode, selection.engineCode])
+  const canSearchByVehicle = selection.chassisCode || selection.engineCode
+  const canSearchDirect = directChassisCode || directEngineCode
 
   return (
     <main className="container mx-auto max-w-6xl p-4 space-y-6">
@@ -65,12 +63,69 @@ export default function BrowsePage() {
           <CardTitle>Find Parts for Your BMW</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <HierarchicalCarSelector
-            compact
-            showTitle={false}
-            onSelectionComplete={setSelection}
-            initialSelection={selection}
-          />
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant={searchMode === "vehicle" ? "default" : "outline"}
+              onClick={() => setSearchMode("vehicle")}
+              size="sm"
+            >
+              Search by Vehicle
+            </Button>
+            <Button
+              variant={searchMode === "direct" ? "default" : "outline"}
+              onClick={() => setSearchMode("direct")}
+              size="sm"
+            >
+              Search by Engine/Chassis
+            </Button>
+          </div>
+
+          {searchMode === "vehicle" ? (
+            <div className="space-y-4">
+              <HierarchicalCarSelector
+                showTitle={false}
+                showBuildDate={false}
+                onSelectionChange={setSelection}
+                value={selection}
+              />
+              {canSearchByVehicle && (
+                <Button onClick={runSearch} disabled={loading} className="w-full">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  <span className="ml-2">Search Parts for Selected Vehicle</span>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Chassis Code (Optional)</label>
+                  <Input
+                    value={directChassisCode}
+                    onChange={(e) => setDirectChassisCode(e.target.value.toUpperCase())}
+                    placeholder="e.g., G20, F30, E90"
+                    aria-label="Chassis code"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Engine Code (Optional)</label>
+                  <Input
+                    value={directEngineCode}
+                    onChange={(e) => setDirectEngineCode(e.target.value.toUpperCase())}
+                    placeholder="e.g., B48, B58, N55"
+                    aria-label="Engine code"
+                  />
+                </div>
+              </div>
+              {canSearchDirect && (
+                <Button onClick={runSearch} disabled={loading} className="w-full">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  <span className="ml-2">Search Parts by Engine/Chassis</span>
+                </Button>
+              )}
+            </div>
+          )}
+
           <Separator />
           <div className="flex gap-2">
             <Input
@@ -84,11 +139,16 @@ export default function BrowsePage() {
               <span className="ml-2">Search</span>
             </Button>
           </div>
-          {selection.chassisCode && (
+
+          {(selection.chassisCode || directChassisCode || selection.engineCode || directEngineCode) && (
             <div className="flex flex-wrap gap-2 text-sm">
-              <Badge variant="secondary">Year: {selection.year}</Badge>
-              <Badge variant="secondary">Chassis: {selection.chassisCode}</Badge>
-              {selection.engineCode && <Badge variant="secondary">Engine: {selection.engineCode}</Badge>}
+              {searchMode === "vehicle" && selection.year && <Badge variant="secondary">Year: {selection.year}</Badge>}
+              {(selection.chassisCode || directChassisCode) && (
+                <Badge variant="secondary">Chassis: {selection.chassisCode || directChassisCode}</Badge>
+              )}
+              {(selection.engineCode || directEngineCode) && (
+                <Badge variant="secondary">Engine: {selection.engineCode || directEngineCode}</Badge>
+              )}
               {selection.bodyType && <Badge variant="secondary">Body: {selection.bodyType}</Badge>}
             </div>
           )}
@@ -102,7 +162,9 @@ export default function BrowsePage() {
           </div>
         )}
         {!loading && results.length === 0 && (
-          <div className="text-sm text-gray-500">No parts yet. Try a search or finish selecting your vehicle.</div>
+          <div className="text-sm text-gray-500">
+            No parts found. Try a different search or check your chassis/engine codes.
+          </div>
         )}
         {!loading &&
           results.map((p) => (
@@ -112,6 +174,9 @@ export default function BrowsePage() {
                   <div className="font-medium">{p.part_name}</div>
                   <div className="text-sm text-gray-600">{p.part_number}</div>
                   {p.category_name && <div className="text-xs text-gray-500 mt-1">{p.category_name}</div>}
+                  <div className="text-xs text-gray-400 mt-1">
+                    Compatible: {p.compatible_chassis?.join(", ")} | {p.compatible_engines?.join(", ")}
+                  </div>
                 </div>
                 <div className="text-right flex items-center gap-4">
                   <div>

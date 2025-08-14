@@ -59,10 +59,10 @@ export default function OemCatalogPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <HierarchicalCarSelector
-            compact
             showTitle={false}
-            onSelectionComplete={setSelection}
-            initialSelection={selection}
+            showBuildDate={false}
+            onSelectionChange={setSelection}
+            value={selection}
           />
           <Separator />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
