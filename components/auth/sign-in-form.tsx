@@ -1,46 +1,52 @@
 "use client"
 
-import { useActionState } from "react"
-import { useFormStatus } from "react-dom"
+import type React from "react"
+
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 import Link from "next/link"
 import { Mail, Lock, LogIn, UserPlus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { signIn } from "@/lib/auth-actions"
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? (
-        <>
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Signing in...
-        </>
-      ) : (
-        <>
-          <LogIn className="h-4 w-4 mr-2" />
-          Sign in
-        </>
-      )}
-    </Button>
-  )
-}
+import { supabase } from "@/lib/supabase"
 
 export function SignInForm() {
   const router = useRouter()
-  const [state, formAction] = useActionState(signIn, null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (state?.success) {
-      router.push("/maintenance")
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const formData = new FormData(e.currentTarget)
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        setError(authError.message)
+        return
+      }
+
+      if (data.user) {
+        router.push("/maintenance")
+        router.refresh()
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.")
+    } finally {
+      setLoading(false)
     }
-  }, [state, router])
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -49,11 +55,11 @@ export function SignInForm() {
         <CardDescription>Access your BMW Parts account</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-4">
-          {state?.error && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
             <Alert variant="destructive">
               <AlertTitle>Sign-in failed</AlertTitle>
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
@@ -71,6 +77,7 @@ export function SignInForm() {
                 className="pl-9"
                 required
                 autoComplete="email"
+                disabled={loading}
               />
             </div>
           </div>
@@ -89,11 +96,24 @@ export function SignInForm() {
                 className="pl-9"
                 required
                 autoComplete="current-password"
+                disabled={loading}
               />
             </div>
           </div>
 
-          <SubmitButton />
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                <LogIn className="h-4 w-4 mr-2" />
+                Sign in
+              </>
+            )}
+          </Button>
 
           <div className="flex items-center justify-center">
             <Link href="/auth/sign-up" className="text-sm text-blue-600 hover:underline inline-flex items-center">

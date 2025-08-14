@@ -1,37 +1,68 @@
 "use client"
 
-import { useActionState } from "react"
-import { useFormStatus } from "react-dom"
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Mail, Lock, User, UserPlus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { signUp } from "@/lib/auth-actions"
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? (
-        <>
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Creating account...
-        </>
-      ) : (
-        <>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Create account
-        </>
-      )}
-    </Button>
-  )
-}
+import { supabase } from "@/lib/supabase"
 
 export function SignUpForm() {
-  const [state, formAction] = useActionState(signUp, null)
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    const formData = new FormData(e.currentTarget)
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+    const fullName = formData.get("fullName") as string
+
+    try {
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/maintenance`,
+        },
+      })
+
+      if (authError) {
+        setError(authError.message)
+        return
+      }
+
+      if (data.user) {
+        if (data.user.email_confirmed_at) {
+          setSuccess("Account created successfully! Redirecting...")
+          setTimeout(() => {
+            router.push("/maintenance")
+            router.refresh()
+          }, 1500)
+        } else {
+          setSuccess("Account created! Please check your email to verify your account before signing in.")
+        }
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -40,18 +71,18 @@ export function SignUpForm() {
         <CardDescription>Join the BMW Parts community</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-4">
-          {state?.error && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
             <Alert variant="destructive">
               <AlertTitle>Sign-up failed</AlertTitle>
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          {state?.success && (
+          {success && (
             <Alert>
               <AlertTitle>Sign-up successful</AlertTitle>
-              <AlertDescription>{state.success}</AlertDescription>
+              <AlertDescription>{success}</AlertDescription>
             </Alert>
           )}
 
@@ -68,6 +99,7 @@ export function SignUpForm() {
                 placeholder="Jane Driver"
                 className="pl-9"
                 autoComplete="name"
+                disabled={loading}
               />
             </div>
           </div>
@@ -86,6 +118,7 @@ export function SignUpForm() {
                 className="pl-9"
                 required
                 autoComplete="email"
+                disabled={loading}
               />
             </div>
           </div>
@@ -104,11 +137,24 @@ export function SignUpForm() {
                 className="pl-9"
                 required
                 autoComplete="new-password"
+                disabled={loading}
               />
             </div>
           </div>
 
-          <SubmitButton />
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              <>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create account
+              </>
+            )}
+          </Button>
 
           <p className="text-sm text-center text-muted-foreground">
             Already have an account?{" "}
