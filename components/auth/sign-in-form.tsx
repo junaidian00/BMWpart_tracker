@@ -1,53 +1,46 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useActionState } from "react"
+import { useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import Link from "next/link"
-import { Mail, Lock, LogIn, UserPlus, TestTube2, AlertTriangle } from "lucide-react"
+import { Mail, Lock, LogIn, UserPlus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useAuth } from "@/contexts/auth-context"
-import { getMissingSupabaseEnv } from "@/lib/supabase"
+import { signIn } from "@/lib/auth-actions"
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Signing in...
+        </>
+      ) : (
+        <>
+          <LogIn className="h-4 w-4 mr-2" />
+          Sign in
+        </>
+      )}
+    </Button>
+  )
+}
 
 export function SignInForm() {
-  const { signIn, createTestUser, loading, envReady } = useAuth()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [testCreds, setTestCreds] = useState<{ email: string; password: string } | null>(null)
+  const router = useRouter()
+  const [state, formAction] = useActionState(signIn, null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      await signIn(email, password)
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to sign in")
-    } finally {
-      setSubmitting(false)
+  useEffect(() => {
+    if (state?.success) {
+      router.push("/maintenance")
     }
-  }
-
-  const handleCreateTestUser = async () => {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const creds = await createTestUser()
-      setTestCreds(creds)
-      // Optionally auto-fill the form with new creds
-      setEmail(creds.email)
-      setPassword(creds.password)
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to create test user")
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  }, [state, router])
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -56,17 +49,14 @@ export function SignInForm() {
         <CardDescription>Access your BMW Parts account</CardDescription>
       </CardHeader>
       <CardContent>
-        {!envReady && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Supabase is not configured</AlertTitle>
-            <AlertDescription>
-              Missing environment variables: {getMissingSupabaseEnv().join(", ")}. Add them to preview auth.
-            </AlertDescription>
-          </Alert>
-        )}
+        <form action={formAction} className="space-y-4">
+          {state?.error && (
+            <Alert variant="destructive">
+              <AlertTitle>Sign-in failed</AlertTitle>
+              <AlertDescription>{state.error}</AlertDescription>
+            </Alert>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4" aria-disabled={!envReady}>
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">
               Email
@@ -75,17 +65,16 @@ export function SignInForm() {
               <Mail className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="you@example.com"
                 className="pl-9"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={!envReady || submitting || loading}
                 autoComplete="email"
               />
             </div>
           </div>
+
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium">
               Password
@@ -94,58 +83,24 @@ export function SignInForm() {
               <Lock className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <Input
                 id="password"
+                name="password"
                 type="password"
                 placeholder="Your password"
                 className="pl-9"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={!envReady || submitting || loading}
                 autoComplete="current-password"
               />
             </div>
           </div>
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Sign-in failed</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <SubmitButton />
 
-          <Button type="submit" className="w-full" disabled={!envReady || submitting || loading}>
-            <LogIn className="h-4 w-4 mr-2" />
-            {submitting ? "Signing in..." : "Sign in"}
-          </Button>
-
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-center">
             <Link href="/auth/sign-up" className="text-sm text-blue-600 hover:underline inline-flex items-center">
               <UserPlus className="h-3.5 w-3.5 mr-1" />
               Create an account
             </Link>
-            <button
-              type="button"
-              onClick={handleCreateTestUser}
-              className="text-sm text-gray-600 hover:text-gray-900 inline-flex items-center"
-              disabled={!envReady || submitting || loading}
-              aria-label="Create a test user"
-            >
-              <TestTube2 className="h-3.5 w-3.5 mr-1" />
-              Create test user
-            </button>
           </div>
-
-          {testCreds && (
-            <Alert className="mt-4">
-              <AlertTitle>Test user created</AlertTitle>
-              <AlertDescription>
-                Email: {testCreds.email}
-                <br />
-                Password: {testCreds.password}
-              </AlertDescription>
-            </Alert>
-          )}
         </form>
       </CardContent>
     </Card>

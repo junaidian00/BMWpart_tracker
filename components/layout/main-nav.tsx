@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { UserMenu } from "@/components/auth/user-menu"
 import { CartButton } from "@/components/cart/cart-button"
-import { useAuth } from "@/contexts/auth-context"
 
 const navigation = [
   { name: "Home", href: "/", icon: Car },
@@ -23,7 +22,6 @@ const navigation = [
 export function MainNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { user } = useAuth()
 
   return (
     <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
