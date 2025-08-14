@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import { addVehicleToGarage, getGarageVehicles, type GarageVehicle } from "@/lib/garage"
-import { Car, Wrench } from "lucide-react"
+import { Car, Wrench, LogIn, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { DatabaseStatus } from "@/components/maintenance/database-status"
 
@@ -112,11 +112,45 @@ export default function MaintenanceClient() {
       {/* Database Status Section */}
       <DatabaseStatus />
 
+      {!user && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-900">
+              <LogIn className="h-5 w-5" />
+              Sign In Required
+            </CardTitle>
+            <CardDescription className="text-blue-700">
+              Sign in to your account to add vehicles to your garage and track maintenance history.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button asChild>
+                <Link href="/auth/sign-in">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Sign In
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/auth/sign-up">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Create Account
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Add Vehicle Section */}
       <Card>
         <CardHeader>
           <CardTitle>Add Vehicle to Garage</CardTitle>
-          <CardDescription>Select your BMW to add it to your garage and track maintenance history.</CardDescription>
+          <CardDescription>
+            {user
+              ? "Select your BMW to add it to your garage and track maintenance history."
+              : "Sign in to add vehicles to your garage and track maintenance history."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <HierarchicalCarSelector
