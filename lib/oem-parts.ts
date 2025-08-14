@@ -65,6 +65,7 @@ export interface SearchOEMPartsParams {
   includeDiscontinued?: boolean
   limit?: number
   offset?: number
+  year?: number
 }
 
 export type SearchFilters = SearchOEMPartsParams
@@ -428,13 +429,314 @@ const INSTANT_OEM_PARTS: BMWOEMPart[] = [
   },
 ]
 
+interface VehicleSpecificPart {
+  part_number: string
+  part_name: string
+  description: string
+  price_msrp: number
+  category_name: string
+  category_code: string
+  is_discontinued: boolean
+  superseded_by?: string | null
+  // Vehicle compatibility
+  years: number[]
+  chassis_codes: string[]
+  engine_codes: string[]
+  transmission_types?: string[]
+}
+
+const YEAR_SPECIFIC_BMW_PARTS: VehicleSpecificPart[] = [
+  // Oil Filters - Engine Specific
+  {
+    part_number: "11427953129", // N55 Oil Filter (2015 2 Series example)
+    part_name: "Oil Filter - N55 Engine",
+    description: "Engine oil filter for N55 turbocharged engines",
+    price_msrp: 18.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2011, 2012, 2013, 2014, 2015, 2016],
+    chassis_codes: ["F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "F10", "F11", "F07", "F01", "F02"],
+    engine_codes: ["N55"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "11427826799", // B58 Oil Filter (2016+ 2 Series example)
+    part_name: "Oil Filter - B58 Engine",
+    description: "Engine oil filter for B58 turbocharged engines",
+    price_msrp: 19.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["F22", "F23", "G20", "G21", "G22", "G23", "G30", "G31", "G32", "G05", "G06", "G07"],
+    engine_codes: ["B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "11427566327", // B48 Oil Filter
+    part_name: "Oil Filter - B48 Engine",
+    description: "Engine oil filter for B48 turbocharged engines",
+    price_msrp: 16.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["F20", "F21", "F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "G20", "G21", "G01", "G02"],
+    engine_codes: ["B48"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "11427508969", // N20 Oil Filter
+    part_name: "Oil Filter - N20 Engine",
+    description: "Engine oil filter for N20 turbocharged engines",
+    price_msrp: 17.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2011, 2012, 2013, 2014, 2015, 2016],
+    chassis_codes: ["F20", "F21", "F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "F10", "F11"],
+    engine_codes: ["N20"],
+    transmission_types: ["Manual", "Automatic"],
+  },
+
+  // Air Filters - Chassis and Engine Specific
+  {
+    part_number: "13717570261", // F22 2 Series Air Filter
+    part_name: "Air Filter - F22 2 Series",
+    description: "Engine air filter for F22 2 Series chassis",
+    price_msrp: 28.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021],
+    chassis_codes: ["F22", "F23"],
+    engine_codes: ["N20", "N55", "B48", "B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "13718616427", // G20 3 Series Air Filter
+    part_name: "Air Filter - G20 3 Series",
+    description: "Engine air filter for G20 3 Series chassis",
+    price_msrp: 32.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["G20", "G21"],
+    engine_codes: ["B48", "B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+
+  // Spark Plugs - Engine Specific
+  {
+    part_number: "12120037607", // N55 Spark Plugs
+    part_name: "Spark Plugs - N55 Engine (Set of 6)",
+    description: "Spark plug set for N55 6-cylinder turbocharged engines",
+    price_msrp: 89.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2011, 2012, 2013, 2014, 2015, 2016],
+    chassis_codes: ["F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "F10", "F11", "F07"],
+    engine_codes: ["N55"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "12120040516", // B58 Spark Plugs
+    part_name: "Spark Plugs - B58 Engine (Set of 6)",
+    description: "Spark plug set for B58 6-cylinder turbocharged engines",
+    price_msrp: 94.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["F22", "F23", "G20", "G21", "G22", "G23", "G30", "G31", "G32", "G05", "G06"],
+    engine_codes: ["B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "12120037244", // B48 Spark Plugs
+    part_name: "Spark Plugs - B48 Engine (Set of 4)",
+    description: "Spark plug set for B48 4-cylinder turbocharged engines",
+    price_msrp: 67.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["F20", "F21", "F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "G20", "G21", "G01", "G02"],
+    engine_codes: ["B48"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+
+  // Brake Pads - Chassis Specific
+  {
+    part_number: "34116794300", // F22 Front Brake Pads
+    part_name: "Brake Pad Set Front - F22 2 Series",
+    description: "Front brake pad set for F22/F23 2 Series",
+    price_msrp: 94.99,
+    category_name: "Brake System",
+    category_code: "BRAKES",
+    is_discontinued: false,
+    years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021],
+    chassis_codes: ["F22", "F23"],
+    engine_codes: ["N20", "N55", "B48", "B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "34116858910", // G20 Front Brake Pads
+    part_name: "Brake Pad Set Front - G20 3 Series",
+    description: "Front brake pad set for G20/G21 3 Series",
+    price_msrp: 109.99,
+    category_name: "Brake System",
+    category_code: "BRAKES",
+    is_discontinued: false,
+    years: [2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["G20", "G21"],
+    engine_codes: ["B48", "B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+
+  // Water Pumps - Engine Specific
+  {
+    part_number: "11517586925", // N55 Water Pump
+    part_name: "Water Pump - N55 Engine",
+    description: "Engine water pump for N55 turbocharged engines",
+    price_msrp: 189.99,
+    category_name: "Cooling System",
+    category_code: "COOLING",
+    is_discontinued: false,
+    years: [2011, 2012, 2013, 2014, 2015, 2016],
+    chassis_codes: ["F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "F10", "F11", "F07"],
+    engine_codes: ["N55"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "11518635089", // B58 Water Pump
+    part_name: "Water Pump - B58 Engine",
+    description: "Engine water pump for B58 turbocharged engines",
+    price_msrp: 219.99,
+    category_name: "Cooling System",
+    category_code: "COOLING",
+    is_discontinued: false,
+    years: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["F22", "F23", "G20", "G21", "G22", "G23", "G30", "G31", "G32", "G05", "G06"],
+    engine_codes: ["B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+
+  // Fuel Injectors - Engine Specific
+  {
+    part_number: "13537585261", // N55 Fuel Injector
+    part_name: "Fuel Injector - N55 Engine",
+    description: "High-pressure fuel injector for N55 engines",
+    price_msrp: 159.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2011, 2012, 2013, 2014, 2015, 2016],
+    chassis_codes: ["F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "F10", "F11"],
+    engine_codes: ["N55"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "13538616079", // B58 Fuel Injector
+    part_name: "Fuel Injector - B58 Engine",
+    description: "High-pressure fuel injector for B58 engines",
+    price_msrp: 179.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["F22", "F23", "G20", "G21", "G22", "G23", "G30", "G31", "G32"],
+    engine_codes: ["B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+
+  // Turbochargers - Engine Specific
+  {
+    part_number: "11657649290", // N55 Turbocharger
+    part_name: "Turbocharger - N55 Engine",
+    description: "Single turbocharger for N55 engines",
+    price_msrp: 1899.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2011, 2012, 2013, 2014, 2015, 2016],
+    chassis_codes: ["F22", "F23", "F30", "F31", "F32", "F33", "F34", "F36", "F10", "F11"],
+    engine_codes: ["N55"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+  {
+    part_number: "11658635089", // B58 Turbocharger
+    part_name: "Turbocharger - B58 Engine",
+    description: "Single turbocharger for B58 engines",
+    price_msrp: 2199.99,
+    category_name: "Engine Components",
+    category_code: "ENGINE",
+    is_discontinued: false,
+    years: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["F22", "F23", "G20", "G21", "G22", "G23", "G30", "G31", "G32"],
+    engine_codes: ["B58"],
+    transmission_types: ["Manual", "Automatic", "DCT"],
+  },
+
+  // Transmission Specific Parts
+  {
+    part_number: "24007571227", // Manual Transmission Clutch Kit F22
+    part_name: "Clutch Kit - F22 Manual Transmission",
+    description: "Complete clutch kit for F22 manual transmission",
+    price_msrp: 689.99,
+    category_name: "Transmission",
+    category_code: "TRANSMISSION",
+    is_discontinued: false,
+    years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021],
+    chassis_codes: ["F22", "F23"],
+    engine_codes: ["N20", "N55", "B48"],
+    transmission_types: ["Manual"],
+  },
+  {
+    part_number: "24007635089", // DCT Transmission Fluid G20
+    part_name: "DCT Transmission Fluid - G20 Series",
+    description: "Dual-clutch transmission fluid for G20 DCT",
+    price_msrp: 89.99,
+    category_name: "Transmission",
+    category_code: "TRANSMISSION",
+    is_discontinued: false,
+    years: [2019, 2020, 2021, 2022, 2023, 2024],
+    chassis_codes: ["G20", "G21"],
+    engine_codes: ["B48", "B58"],
+    transmission_types: ["DCT"],
+  },
+]
+
 export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWOEMPart[]> {
-  // Return instant results without any database queries or complex filtering
   return new Promise((resolve) => {
     setTimeout(() => {
-      let results = [...INSTANT_OEM_PARTS]
+      let results: BMWOEMPart[] = []
 
-      // Simple filtering
+      // Convert year-specific parts to BMWOEMPart format
+      const convertedParts = YEAR_SPECIFIC_BMW_PARTS.map((part, index) => ({
+        id: `ys-${index}`,
+        part_number: part.part_number,
+        part_name: part.part_name,
+        description: part.description,
+        price_msrp: part.price_msrp,
+        is_discontinued: part.is_discontinued,
+        superseded_by: part.superseded_by || null,
+        category_name: part.category_name,
+        category_code: part.category_code,
+        compatible_chassis: part.chassis_codes,
+        compatible_engines: part.engine_codes,
+        compatible_body_types: ["Sedan", "Coupe", "Wagon", "Hatchback", "SUV"],
+        earliest_year: Math.min(...part.years),
+        latest_year: Math.max(...part.years),
+      }))
+
+      // Combine with existing parts
+      results = [...convertedParts, ...INSTANT_OEM_PARTS]
+
+      // Apply filters
       if (params.query) {
         const q = params.query.toLowerCase()
         results = results.filter(
@@ -453,12 +755,27 @@ export async function searchOEMParts(params: SearchOEMPartsParams): Promise<BMWO
         results = results.filter((part) => part.compatible_engines?.includes(params.engineCode!))
       }
 
+      if (params.year) {
+        results = results.filter((part) => {
+          if (!part.earliest_year || !part.latest_year) return true
+          return params.year! >= part.earliest_year && params.year! <= part.latest_year
+        })
+      }
+
       if (params.categoryCode) {
         results = results.filter((part) => part.category_code === params.categoryCode)
       }
 
-      resolve(results.slice(0, params.limit || 50))
-    }, 100) // Minimal delay to show it's working
+      // Remove duplicates by part number (prefer year-specific parts)
+      const uniqueParts = new Map<string, BMWOEMPart>()
+      results.forEach((part) => {
+        if (!uniqueParts.has(part.part_number) || part.id.startsWith("ys-")) {
+          uniqueParts.set(part.part_number, part)
+        }
+      })
+
+      resolve(Array.from(uniqueParts.values()).slice(0, params.limit || 50))
+    }, 100)
   })
 }
 
@@ -531,6 +848,12 @@ export async function getPartCategories(): Promise<BMWPartCategory[]> {
       description: "Performance parts",
     },
     { id: "DRIVETRAIN", category_name: "Drivetrain", category_code: "DRIVETRAIN", description: "Drivetrain parts" },
+    {
+      id: "TRANSMISSION",
+      category_name: "Transmission",
+      category_code: "TRANSMISSION",
+      description: "Transmission parts",
+    },
   ]
 }
 
@@ -579,6 +902,7 @@ export type VehiclePartFilters = {
   includeDiscontinued?: boolean
   limit?: number
   offset?: number
+  year?: number
 }
 
 export async function getVehicleSpecificParts(filters: VehiclePartFilters): Promise<BMWOEMPart[]> {
@@ -592,5 +916,6 @@ export async function getVehicleSpecificParts(filters: VehiclePartFilters): Prom
     includeDiscontinued: filters.includeDiscontinued,
     limit: filters.limit,
     offset: filters.offset,
+    year: filters.year,
   })
 }
