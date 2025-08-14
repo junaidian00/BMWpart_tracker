@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function init() {
       try {
-        if (!isSupabaseConfigured) {
+        if (!isSupabaseConfigured()) {
           // Demo mode: no auth, immediately done.
           setUser(null)
           return
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       // Demo mode: simulate successful sign-in
       setUser({ id: "demo-user", email, full_name: "Demo User" })
       router.push("/dashboard")
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       // Demo mode: simulate successful sign-up
       setUser({ id: "demo-user", email, full_name: fullName || "Demo User" })
       router.push("/dashboard")
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const testEmail = `test-${Date.now()}@example.com`
     const testPassword = "testpassword123"
 
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured()) {
       // Demo mode: return test credentials
       return { email: testEmail, password: testPassword }
     }
@@ -170,12 +170,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       loading,
-      envReady: isSupabaseConfigured, // Added envReady property
+      envReady: isSupabaseConfigured(), // Fixed to call the function instead of passing the function reference
       signIn,
       signUp,
       signOut: async () => {
         try {
-          if (isSupabaseConfigured) {
+          if (isSupabaseConfigured()) {
+            // Also fixed this call to be consistent
             await supabase.auth.signOut()
           }
           setUser(null)
