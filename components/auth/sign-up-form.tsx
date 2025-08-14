@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseClientWithTimeout, isSupabaseConfigured } from "@/lib/supabase"
 
 export function SignUpForm() {
   const router = useRouter()
@@ -29,7 +29,18 @@ export function SignUpForm() {
     const password = formData.get("password") as string
     const fullName = formData.get("fullName") as string
 
+    if (!isSupabaseConfigured()) {
+      setSuccess("Demo account created! Redirecting to maintenance tracker...")
+      setTimeout(() => {
+        router.push("/maintenance")
+        router.refresh()
+      }, 2000)
+      setLoading(false)
+      return
+    }
+
     try {
+      const supabase = getSupabaseClientWithTimeout()
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -42,7 +53,11 @@ export function SignUpForm() {
       })
 
       if (authError) {
-        setError(authError.message)
+        if (authError.message.includes("timeout")) {
+          setError("Connection timed out. Please try again or use demo mode.")
+        } else {
+          setError(authError.message)
+        }
         return
       }
 
@@ -57,8 +72,13 @@ export function SignUpForm() {
           setSuccess("Account created! Please check your email to verify your account before signing in.")
         }
       }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.")
+    } catch (err: any) {
+      console.error("Sign-up error:", err)
+      if (err.message.includes("timeout")) {
+        setError("Connection timed out. Please check your internet connection and try again.")
+      } else {
+        setError("An unexpected error occurred. Please try again.")
+      }
     } finally {
       setLoading(false)
     }

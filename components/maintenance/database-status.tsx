@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from "lucide-react"
 import { checkDatabaseHealth } from "@/lib/maintenance"
-import { isSupabaseConfigured } from "@/lib/supabase"
+import { isSupabaseConfigured, withTimeout } from "@/lib/supabase"
 
 export function DatabaseStatus() {
   const [status, setStatus] = useState<{
@@ -19,10 +19,15 @@ export function DatabaseStatus() {
   const checkStatus = async () => {
     setLoading(true)
     try {
-      const result = await checkDatabaseHealth()
+      const result = await withTimeout(checkDatabaseHealth(), 5000)
       setStatus(result)
     } catch (error: any) {
-      setStatus({ connected: false, tablesExist: false, error: error.message })
+      console.error("Database health check failed:", error)
+      setStatus({
+        connected: false,
+        tablesExist: false,
+        error: error.message.includes("timeout") ? "Database connection timed out. Using demo mode." : error.message,
+      })
     } finally {
       setLoading(false)
     }
@@ -88,6 +93,11 @@ export function DatabaseStatus() {
         {status?.error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-700">{status.error}</p>
+            {status.error.includes("timeout") && (
+              <p className="text-sm text-red-600 mt-2">
+                The maintenance tracker will use demo data until the connection is restored.
+              </p>
+            )}
           </div>
         )}
 

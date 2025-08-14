@@ -54,13 +54,42 @@ export function getSupabaseClient(): SupabaseClient {
   return browserClient
 }
 
+export function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs),
+    ),
+  ])
+}
+
+export function getSupabaseClientWithTimeout(): SupabaseClient {
+  const client = getSupabaseClient()
+
+  // Create a new client object that preserves all methods but wraps specific ones with timeout
+  const enhancedClient = { ...client }
+
+  // Only wrap the async auth methods that need timeout, preserve everything else
+  enhancedClient.auth = {
+    ...client.auth,
+    signInWithPassword: (credentials: any) => withTimeout(client.auth.signInWithPassword(credentials), 10000),
+    signUp: (credentials: any) => withTimeout(client.auth.signUp(credentials), 10000),
+    signOut: () => withTimeout(client.auth.signOut(), 5000),
+    getUser: () => withTimeout(client.auth.getUser(), 5000),
+    // Keep onAuthStateChange and other methods as-is
+    onAuthStateChange: client.auth.onAuthStateChange.bind(client.auth),
+  } as any
+
+  return enhancedClient
+}
+
 /**
  * A lazy proxy export that behaves like `supabase` but only initializes when used.
  * This prevents crashes during import time if env vars are missing.
  */
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    const client = getSupabaseClient()
+    const client = getSupabaseClient() // Use regular client to avoid issues
     const value = (client as any)[prop]
     return typeof value === "function" ? value.bind(client) : value
   },
@@ -121,13 +150,14 @@ function createShimClient(): SupabaseClient {
       getUser: async () => ({ data: { user: null }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } }, error: null }),
       signInWithPassword: async () => ({ data: { user: null }, error: { message: "Supabase not configured" } }),
+      signUp: async () => ({ data: { user: null }, error: { message: "Supabase not configured" } }),
       signOut: async () => ({ error: null }),
     },
   }
   return shim as SupabaseClient
 }
 
-// Database types (kept from your original file)
+// ... existing database types remain the same ...
 export interface Vehicle {
   id: string
   user_id: string

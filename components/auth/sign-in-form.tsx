@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseClientWithTimeout, isSupabaseConfigured } from "@/lib/supabase"
 
 export function SignInForm() {
   const router = useRouter()
@@ -26,14 +26,29 @@ export function SignInForm() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
+    if (!isSupabaseConfigured()) {
+      setError("Authentication is not configured. Using demo mode.")
+      setTimeout(() => {
+        router.push("/maintenance")
+        router.refresh()
+      }, 2000)
+      setLoading(false)
+      return
+    }
+
     try {
+      const supabase = getSupabaseClientWithTimeout()
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (authError) {
-        setError(authError.message)
+        if (authError.message.includes("timeout")) {
+          setError("Connection timed out. Please try again or use demo mode.")
+        } else {
+          setError(authError.message)
+        }
         return
       }
 
@@ -41,8 +56,13 @@ export function SignInForm() {
         router.push("/maintenance")
         router.refresh()
       }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.")
+    } catch (err: any) {
+      console.error("Sign-in error:", err)
+      if (err.message.includes("timeout")) {
+        setError("Connection timed out. Please check your internet connection and try again.")
+      } else {
+        setError("An unexpected error occurred. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
