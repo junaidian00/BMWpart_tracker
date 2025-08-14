@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -125,6 +125,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       throw new Error(error.message)
     }
+
+    // If user is immediately confirmed (email confirmation disabled)
+    if (data.user && data.session) {
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        full_name: data.user.user_metadata?.full_name,
+        avatar_url: data.user.user_metadata?.avatar_url,
+      })
+      router.push("/dashboard")
+    }
+    // If email confirmation is required, the form will show the verification message
+    // and the user will be redirected after clicking the email link
   }
 
   const createTestUser = async (): Promise<{ email: string; password: string }> => {
