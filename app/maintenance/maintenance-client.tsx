@@ -6,11 +6,32 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/contexts/auth-context"
 import { addVehicleToGarage, getGarageVehicles, type GarageVehicle } from "@/lib/garage"
 import { Car, Wrench, LogIn, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { DatabaseStatus } from "@/components/maintenance/database-status"
+
+interface OfflineUser {
+  id: string
+  email: string
+  name?: string
+  createdAt: string
+}
+
+function getCurrentUser(): OfflineUser | null {
+  if (typeof window === "undefined") return null
+
+  try {
+    const userStr = localStorage.getItem("offline_auth_user")
+    if (!userStr) return null
+
+    const user = JSON.parse(userStr)
+    return user
+  } catch (error) {
+    console.error("Error getting current user:", error)
+    return null
+  }
+}
 
 function GarageVehicleCard({ vehicle }: { vehicle: GarageVehicle }) {
   return (
@@ -48,10 +69,33 @@ export default function MaintenanceClient() {
   const [garageVehicles, setGarageVehicles] = useState<GarageVehicle[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingGarage, setLoadingGarage] = useState(true)
-  const { user } = useAuth()
+  const [user, setUser] = useState<OfflineUser | null>(null)
   const { toast } = useToast()
 
-  // Load user's garage vehicles on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const currentUser = getCurrentUser()
+      setUser(currentUser)
+    }
+
+    checkAuth()
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "offline_auth_user") {
+        checkAuth()
+      }
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+
+    const interval = setInterval(checkAuth, 1000)
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [])
+
   useEffect(() => {
     const loadGarageVehicles = async () => {
       if (!user?.id) {
@@ -86,7 +130,6 @@ export default function MaintenanceClient() {
     try {
       const newVehicle = await addVehicleToGarage(vehicleSelection, user.id)
 
-      // Update local garage state
       setGarageVehicles((prev) => [newVehicle, ...prev])
 
       toast({
@@ -94,7 +137,6 @@ export default function MaintenanceClient() {
         description: `${vehicleSelection.year} ${vehicleSelection.modelName} (${vehicleSelection.chassisCode}) has been added to your garage.`,
       })
 
-      // Reset selection after adding
       setSelection({})
     } catch (error: any) {
       toast({
@@ -109,7 +151,6 @@ export default function MaintenanceClient() {
 
   return (
     <div className="space-y-6">
-      {/* Database Status Section */}
       <DatabaseStatus />
 
       {!user && (
@@ -142,7 +183,6 @@ export default function MaintenanceClient() {
         </Card>
       )}
 
-      {/* Add Vehicle Section */}
       <Card>
         <CardHeader>
           <CardTitle>Add Vehicle to Garage</CardTitle>
@@ -163,37 +203,6 @@ export default function MaintenanceClient() {
         </CardContent>
       </Card>
 
-      {/* Selection Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Selection Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground space-y-1">
-            <div>Year: {selection.year || "Not selected"}</div>
-            <div>Model: {selection.modelName || "Not selected"}</div>
-            <div>Chassis: {selection.chassisCode || "Not selected"}</div>
-            <div>Engine: {selection.engineCode || "Not selected"}</div>
-            <div>Transmission: {selection.transmissionCode || "Not selected"}</div>
-            <div>Build Date: {selection.buildDate || "Not selected"}</div>
-          </div>
-
-          {selection.year &&
-            selection.modelName &&
-            selection.chassisCode &&
-            selection.engineCode &&
-            selection.transmissionCode &&
-            !selection.buildDate && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-800">
-                  Almost there! Select your vehicle's build date to add it to your garage.
-                </p>
-              </div>
-            )}
-        </CardContent>
-      </Card>
-
-      {/* My Garage Section */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

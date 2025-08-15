@@ -27,14 +27,11 @@ export function SignInForm() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    // Always try offline mode first for deployment reliability
     try {
-      await OfflineAuthSystem.signIn(email, password)
-      router.push("/maintenance")
-      router.refresh()
-      return
-    } catch (offlineError: any) {
-      // If offline auth fails, try Supabase if configured
+      let authSuccess = false
+      let lastError = null
+
+      // Try Supabase first if configured
       if (isSupabaseConfigured()) {
         try {
           const supabase = getSupabaseClientWithTimeout()
@@ -44,33 +41,41 @@ export function SignInForm() {
           })
 
           if (authError) {
-            // Fall back to offline mode if Supabase fails
-            await OfflineAuthSystem.signIn(email, password)
-            router.push("/maintenance")
-            router.refresh()
-            return
-          }
-
-          if (data.user) {
-            router.push("/maintenance")
-            router.refresh()
-            return
+            lastError = authError.message
+          } else if (data.user) {
+            authSuccess = true
           }
         } catch (supabaseError: any) {
-          console.error("Supabase sign-in failed, using offline mode:", supabaseError)
-          // Final fallback to offline mode
-          try {
-            await OfflineAuthSystem.signIn(email, password)
-            router.push("/maintenance")
-            router.refresh()
-            return
-          } catch (finalError: any) {
-            setError(finalError.message)
-          }
+          console.log("[v0] Supabase auth failed, trying offline mode:", supabaseError.message)
+          lastError = supabaseError.message
         }
-      } else {
-        setError(offlineError.message)
       }
+
+      // If Supabase failed or isn't configured, try offline mode
+      if (!authSuccess) {
+        try {
+          await OfflineAuthSystem.signIn(email, password)
+          authSuccess = true
+        } catch (offlineError: any) {
+          lastError = offlineError.message
+        }
+      }
+
+      if (authSuccess) {
+        router.push("/maintenance")
+        router.refresh()
+      } else {
+        if (lastError?.includes("Invalid login credentials") || lastError?.includes("Invalid credentials")) {
+          setError("Invalid email or password. Please check your credentials and try again.")
+        } else if (lastError?.includes("timeout") || lastError?.includes("network")) {
+          setError("Connection timeout. Using demo mode - try any email/password combination.")
+        } else {
+          setError(lastError || "Sign-in failed. Please try again.")
+        }
+      }
+    } catch (error: any) {
+      console.error("[v0] Unexpected sign-in error:", error)
+      setError("An unexpected error occurred. Please try again.")
     } finally {
       setLoading(false)
     }
