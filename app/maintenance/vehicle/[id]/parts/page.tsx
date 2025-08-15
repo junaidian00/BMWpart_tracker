@@ -64,7 +64,6 @@ export default function VehiclePartsPage() {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-gray-50">
-          <MainNav />
           <div className="container mx-auto px-4 py-8">
             <div className="text-center">Loading vehicle parts...</div>
           </div>
@@ -77,7 +76,6 @@ export default function VehiclePartsPage() {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-gray-50">
-          <MainNav />
           <div className="container mx-auto px-4 py-8">
             <Alert variant="destructive">
               <AlertDescription>{error || "Vehicle not found"}</AlertDescription>

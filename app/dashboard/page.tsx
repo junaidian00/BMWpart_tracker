@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { AuthGuard } from "@/components/auth/auth-guard"
-import { MainNav } from "@/components/layout/main-nav"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getUserVehicles, getMaintenanceReminders, type Vehicle, type MaintenanceReminder } from "@/lib/maintenance"
-import { Car, Wrench, AlertTriangle, Calendar, TrendingUp, Settings, Plus, Eye, Clock, Package } from 'lucide-react'
+import { Car, Wrench, AlertTriangle, Calendar, TrendingUp, Settings, Plus, Eye, Clock, Package } from "lucide-react"
 import Link from "next/link"
 
 export default function DashboardPage() {
@@ -31,9 +30,9 @@ export default function DashboardPage() {
       setLoading(true)
       const [vehiclesData, remindersData] = await Promise.all([
         getUserVehicles(user?.id),
-        user?.id ? getMaintenanceReminders(user.id) : Promise.resolve([])
+        user?.id ? getMaintenanceReminders(user.id) : Promise.resolve([]),
       ])
-      
+
       setVehicles(vehiclesData)
       setReminders(remindersData)
     } catch (err: any) {
@@ -43,19 +42,14 @@ export default function DashboardPage() {
     }
   }
 
-  const overdueReminders = reminders.filter(r => 
-    r.due_date && new Date(r.due_date) < new Date()
-  )
+  const overdueReminders = reminders.filter((r) => r.due_date && new Date(r.due_date) < new Date())
 
-  const upcomingReminders = reminders.filter(r => 
-    r.due_date && new Date(r.due_date) >= new Date()
-  ).slice(0, 5)
+  const upcomingReminders = reminders.filter((r) => r.due_date && new Date(r.due_date) >= new Date()).slice(0, 5)
 
   if (loading) {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-gray-50">
-          <MainNav />
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -70,8 +64,6 @@ export default function DashboardPage() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50">
-        <MainNav />
-        
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="mb-8">
@@ -162,19 +154,19 @@ export default function DashboardPage() {
                       </Button>
                     </Link>
                     <Link href="/browse">
-                      <Button variant="outline" className="w-full justify-start">
+                      <Button variant="outline" className="w-full justify-start bg-transparent">
                         <Eye className="mr-2 h-4 w-4" />
                         Browse Parts
                       </Button>
                     </Link>
                     <Link href="/oem-catalog">
-                      <Button variant="outline" className="w-full justify-start">
+                      <Button variant="outline" className="w-full justify-start bg-transparent">
                         <Package className="mr-2 h-4 w-4" />
                         OEM Catalog
                       </Button>
                     </Link>
                     <Link href="/forum">
-                      <Button variant="outline" className="w-full justify-start">
+                      <Button variant="outline" className="w-full justify-start bg-transparent">
                         <Settings className="mr-2 h-4 w-4" />
                         Community Forum
                       </Button>
@@ -210,7 +202,9 @@ export default function DashboardPage() {
                               </p>
                             </div>
                             <Link href={`/maintenance/vehicle/${vehicle.id}`}>
-                              <Button size="sm" variant="outline">View</Button>
+                              <Button size="sm" variant="outline">
+                                View
+                              </Button>
                             </Link>
                           </div>
                         ))}
@@ -265,9 +259,7 @@ export default function DashboardPage() {
                                   Due {new Date(reminder.due_date!).toLocaleDateString()}
                                 </p>
                               </div>
-                              <Badge variant="outline">
-                                {reminder.priority}
-                              </Badge>
+                              <Badge variant="outline">{reminder.priority}</Badge>
                             </div>
                           </div>
                         ))}
@@ -284,7 +276,9 @@ export default function DashboardPage() {
                   <CardContent className="text-center py-12">
                     <Car className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No Vehicles Added</h3>
-                    <p className="text-gray-600 mb-4">Start by adding your BMW to track maintenance and find compatible parts</p>
+                    <p className="text-gray-600 mb-4">
+                      Start by adding your BMW to track maintenance and find compatible parts
+                    </p>
                     <Link href="/maintenance/add-vehicle">
                       <Button>
                         <Plus className="mr-2 h-4 w-4" />
@@ -322,7 +316,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex gap-2 pt-2">
                             <Link href={`/maintenance/vehicle/${vehicle.id}`} className="flex-1">
-                              <Button variant="outline" size="sm" className="w-full">
+                              <Button variant="outline" size="sm" className="w-full bg-transparent">
                                 <Wrench className="mr-2 h-4 w-4" />
                                 Maintenance
                               </Button>
@@ -368,7 +362,11 @@ export default function DashboardPage() {
                                 Due: {new Date(reminder.due_date!).toLocaleDateString()}
                               </span>
                               <Badge variant="destructive">
-                                {Math.ceil((new Date().getTime() - new Date(reminder.due_date!).getTime()) / (1000 * 60 * 60 * 24))} days overdue
+                                {Math.ceil(
+                                  (new Date().getTime() - new Date(reminder.due_date!).getTime()) /
+                                    (1000 * 60 * 60 * 24),
+                                )}{" "}
+                                days overdue
                               </Badge>
                             </div>
                           </div>
@@ -401,11 +399,16 @@ export default function DashboardPage() {
                               <span className="text-sm text-gray-500">
                                 Due: {new Date(reminder.due_date!).toLocaleDateString()}
                               </span>
-                              <Badge variant="outline" className={
-                                reminder.priority === 'high' ? 'border-orange-300 text-orange-700' :
-                                reminder.priority === 'medium' ? 'border-yellow-300 text-yellow-700' :
-                                'border-gray-300 text-gray-700'
-                              }>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  reminder.priority === "high"
+                                    ? "border-orange-300 text-orange-700"
+                                    : reminder.priority === "medium"
+                                      ? "border-yellow-300 text-yellow-700"
+                                      : "border-gray-300 text-gray-700"
+                                }
+                              >
                                 {reminder.priority}
                               </Badge>
                             </div>

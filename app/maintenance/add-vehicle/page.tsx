@@ -5,7 +5,6 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/components/auth/auth-guard"
-import { MainNav } from "@/components/layout/main-nav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -72,8 +71,6 @@ export default function AddVehiclePage() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50">
-        <MainNav />
-
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto">
             <div className="flex items-center gap-4 mb-6">
