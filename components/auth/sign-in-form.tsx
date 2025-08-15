@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getSupabaseClientWithTimeout, isSupabaseConfigured } from "@/lib/supabase"
+import { OfflineAuthSystem } from "@/lib/offline-auth"
 
 export function SignInForm() {
   const router = useRouter()
@@ -26,42 +27,49 @@ export function SignInForm() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    if (!isSupabaseConfigured()) {
-      setError("Authentication is not configured. Using demo mode.")
-      setTimeout(() => {
-        router.push("/maintenance")
-        router.refresh()
-      }, 2000)
-      setLoading(false)
-      return
-    }
-
+    // Always try offline mode first for deployment reliability
     try {
-      const supabase = getSupabaseClientWithTimeout()
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      await OfflineAuthSystem.signIn(email, password)
+      router.push("/maintenance")
+      router.refresh()
+      return
+    } catch (offlineError: any) {
+      // If offline auth fails, try Supabase if configured
+      if (isSupabaseConfigured()) {
+        try {
+          const supabase = getSupabaseClientWithTimeout()
+          const { data, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
 
-      if (authError) {
-        if (authError.message.includes("timeout")) {
-          setError("Connection timed out. Please try again or use demo mode.")
-        } else {
-          setError(authError.message)
+          if (authError) {
+            // Fall back to offline mode if Supabase fails
+            await OfflineAuthSystem.signIn(email, password)
+            router.push("/maintenance")
+            router.refresh()
+            return
+          }
+
+          if (data.user) {
+            router.push("/maintenance")
+            router.refresh()
+            return
+          }
+        } catch (supabaseError: any) {
+          console.error("Supabase sign-in failed, using offline mode:", supabaseError)
+          // Final fallback to offline mode
+          try {
+            await OfflineAuthSystem.signIn(email, password)
+            router.push("/maintenance")
+            router.refresh()
+            return
+          } catch (finalError: any) {
+            setError(finalError.message)
+          }
         }
-        return
-      }
-
-      if (data.user) {
-        router.push("/maintenance")
-        router.refresh()
-      }
-    } catch (err: any) {
-      console.error("Sign-in error:", err)
-      if (err.message.includes("timeout")) {
-        setError("Connection timed out. Please check your internet connection and try again.")
       } else {
-        setError("An unexpected error occurred. Please try again.")
+        setError(offlineError.message)
       }
     } finally {
       setLoading(false)

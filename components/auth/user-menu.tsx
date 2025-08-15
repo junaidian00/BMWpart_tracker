@@ -14,20 +14,37 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
+import { OfflineAuthSystem, type OfflineUser } from "@/lib/offline-auth"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 export function UserMenu() {
-  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [user, setUser] = useState<SupabaseUser | OfflineUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isOfflineMode, setIsOfflineMode] = useState(false)
 
   useEffect(() => {
-    // Get initial user
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setUser(user)
+    // Check for offline user first
+    const offlineUser = OfflineAuthSystem.getCurrentUser()
+    if (offlineUser) {
+      setUser(offlineUser)
+      setIsOfflineMode(true)
       setLoading(false)
+      return
+    }
+
+    // Get initial user from Supabase
+    const getUser = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        setUser(user)
+        setIsOfflineMode(false)
+        setLoading(false)
+      } catch (error) {
+        console.error("Failed to get Supabase user:", error)
+        setLoading(false)
+      }
     }
 
     getUser()
@@ -37,6 +54,7 @@ export function UserMenu() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
+      setIsOfflineMode(false)
       setLoading(false)
     })
 
@@ -44,7 +62,13 @@ export function UserMenu() {
   }, [])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    if (isOfflineMode) {
+      OfflineAuthSystem.signOut()
+      setUser(null)
+      setIsOfflineMode(false)
+    } else {
+      await supabase.auth.signOut()
+    }
   }
 
   if (loading) {
@@ -93,7 +117,10 @@ export function UserMenu() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.user_metadata?.full_name || "BMW Enthusiast"}</p>
+            <p className="text-sm font-medium leading-none">
+              {user.user_metadata?.full_name || "BMW Enthusiast"}
+              {isOfflineMode && <span className="text-xs text-blue-600"> (Demo)</span>}
+            </p>
             <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>

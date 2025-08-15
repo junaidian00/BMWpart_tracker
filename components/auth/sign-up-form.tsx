@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getSupabaseClientWithTimeout, isSupabaseConfigured } from "@/lib/supabase"
+import { OfflineAuthSystem } from "@/lib/offline-auth"
 
 export function SignUpForm() {
   const router = useRouter()
@@ -29,55 +30,72 @@ export function SignUpForm() {
     const password = formData.get("password") as string
     const fullName = formData.get("fullName") as string
 
-    if (!isSupabaseConfigured()) {
+    // Always try offline mode first for deployment reliability
+    try {
+      await OfflineAuthSystem.signUp(email, password, fullName)
       setSuccess("Demo account created! Redirecting to maintenance tracker...")
       setTimeout(() => {
         router.push("/maintenance")
         router.refresh()
-      }, 2000)
-      setLoading(false)
+      }, 1500)
       return
-    }
+    } catch (offlineError: any) {
+      // If offline auth fails, try Supabase if configured
+      if (isSupabaseConfigured()) {
+        try {
+          const supabase = getSupabaseClientWithTimeout()
+          const { data, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: fullName,
+              },
+              emailRedirectTo:
+                process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/maintenance`,
+            },
+          })
 
-    try {
-      const supabase = getSupabaseClientWithTimeout()
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/maintenance`,
-        },
-      })
+          if (authError) {
+            // Fall back to offline mode if Supabase fails
+            await OfflineAuthSystem.signUp(email, password, fullName)
+            setSuccess("Demo account created! Redirecting to maintenance tracker...")
+            setTimeout(() => {
+              router.push("/maintenance")
+              router.refresh()
+            }, 1500)
+            return
+          }
 
-      if (authError) {
-        if (authError.message.includes("timeout")) {
-          setError("Connection timed out. Please try again or use demo mode.")
-        } else {
-          setError(authError.message)
+          if (data.user) {
+            if (data.user.email_confirmed_at) {
+              setSuccess("Account created successfully! Redirecting...")
+              setTimeout(() => {
+                router.push("/maintenance")
+                router.refresh()
+              }, 1500)
+            } else {
+              setSuccess("Account created! Please check your email to verify your account before signing in.")
+            }
+            return
+          }
+        } catch (supabaseError: any) {
+          console.error("Supabase sign-up failed, using offline mode:", supabaseError)
+          // Final fallback to offline mode
+          try {
+            await OfflineAuthSystem.signUp(email, password, fullName)
+            setSuccess("Demo account created! Redirecting to maintenance tracker...")
+            setTimeout(() => {
+              router.push("/maintenance")
+              router.refresh()
+            }, 1500)
+            return
+          } catch (finalError: any) {
+            setError(finalError.message)
+          }
         }
-        return
-      }
-
-      if (data.user) {
-        if (data.user.email_confirmed_at) {
-          setSuccess("Account created successfully! Redirecting...")
-          setTimeout(() => {
-            router.push("/maintenance")
-            router.refresh()
-          }, 1500)
-        } else {
-          setSuccess("Account created! Please check your email to verify your account before signing in.")
-        }
-      }
-    } catch (err: any) {
-      console.error("Sign-up error:", err)
-      if (err.message.includes("timeout")) {
-        setError("Connection timed out. Please check your internet connection and try again.")
       } else {
-        setError("An unexpected error occurred. Please try again.")
+        setError(offlineError.message)
       }
     } finally {
       setLoading(false)
